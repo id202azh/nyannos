@@ -2934,7 +2934,7 @@ local function performClick()
     getgenv().AutoClickShootSettings.LastClickTime = currentTime
 end
 
-local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/id202azh/nyannos/refs/heads/main/raw_black_white_list_text_black.txt"))()
+local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/id202azh/nyann/refs/heads/main/FarmHub_BlackWhite.lua"))()
 local Window = redzlib:MakeWindow({
     Title = "nyann os",
     SubTitle = "by real_@nyann",
@@ -2963,7 +2963,7 @@ local v1 = Window:MakeTab({
 })
 local v2 = Window:MakeTab({
     Title = "Farming",
-    Icon = "leaf"
+    Icon = "rbxassetid://10709769508"
 })
 local v3 = Window:MakeTab({
     Title = "Quests & Other",
@@ -3026,13 +3026,25 @@ Discord:AddDiscordInvite({
     Name = "nyann | Community👑",
     Description = "Vào discord nhận thông báo nha!",
     Logo = "rbxassetid://94678517792779",
-    Invite = "https://discord.gg/yt2v62GYX"
+    Invite = "https://discord.gg/HzNaDWHH3"
+})
+Discord:AddDiscordInvite({
+    Name = "nyann get script 👑",
+    Description = "Vào discord nhận thông báo update wed nha!",
+    Logo = "rbxassetid://94678517792779",
+    Invite = "https://discord.gg/3zuHDZCybR"
 })
 Discord:AddDiscordInvite({
     Name = "Facebook",
     Description = "Theo dõi để nhận đc thôi báo mới nhất!",
     Logo = "rbxassetid://94678517792779",
-    Invite = "https://discord.gg/yt2v62GYX"
+    Invite = "https://www.facebook.com/share/1MFxSYvpAS/"
+})
+Discord:AddDiscordInvite({
+    Name = "Tiktok",
+    Description = "Theo dõi để xem video nhảm!",
+    Logo = "rbxassetid://94678517792779",
+    Invite = "tiktok.com/@dev_nyann"
 })
 spawn(function()
     pcall(function()
@@ -12917,5 +12929,57 @@ v12:AddToggle({
         end)
     end
 })
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+pcall(function() setfpscap(120) end)
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RainbowFPS"
+screenGui.ResetOnSpawn = false
+screenGui.DisplayOrder = 1000
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = game:GetService("CoreGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 120, 0, 30)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundTransparency = 1
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local textLabel = Instance.new("TextLabel")
+textLabel.Size = UDim2.new(1, 0, 1, 0)
+textLabel.Position = UDim2.new(0, 0, 0, 0)
+textLabel.Font = Enum.Font.FredokaOne
+textLabel.TextScaled = true
+textLabel.BackgroundTransparency = 1
+textLabel.TextStrokeTransparency = 0.2
+textLabel.Text = "FPS: 0"
+textLabel.Parent = frame
+
+task.spawn(function()
+    local hue = 0
+    while true do
+        hue = (hue + 0.005) % 1
+        textLabel.TextColor3 = Color3.fromHSV(hue, 1, 1)
+        RunService.RenderStepped:Wait()
+    end
+end)
+
+local frameCount = 0
+local lastUpdate = tick()
+RunService.RenderStepped:Connect(function()
+    frameCount = frameCount + 1
+    local now = tick()
+    if now - lastUpdate >= 1 then
+        local fps = math.floor(frameCount / (now - lastUpdate))
+        textLabel.Text = "FPS: " .. tostring(fps)
+        frameCount = 0
+        lastUpdate = now
+    end
+end)
 
 
