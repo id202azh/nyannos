@@ -13,7 +13,7 @@ local function NotificacaoNightMystic(titulo, mensagem)
         local TweenService = (Services and Services.TweenService) or game:GetService("TweenService")
         local CoreGui = (Services and Services.CoreGui) or game:GetService("CoreGui")
         local RunService = (Services and Services.RunService) or game:GetService("RunService")
-        local LogoID = "rbxassetid://89947810111304"
+        local LogoID = "rbxassetid://94678517792779"
         local duration = 5
 
         -- 1. HỆ THỐNG XẾP CHỒNG (Tạo 1 lần duy nhất)
@@ -162,16 +162,16 @@ local function NotificacaoNightMystic(titulo, mensagem)
     end)
     
     if not success then
-        warn("[LongHiHi Hub] Erro ao exibir notificação")
+        warn("[nyann os] Erro ao exibir notificação")
     end
 end
 
 -- ==========================================
 -- GỌI THỬ ĐỂ TEST:
 -- ==========================================
-NotificacaoNightMystic("LongHiHi Notification 🔔", "New Update v4.0🔥")
+NotificacaoNightMystic("nyann os Notification 🔔", "New Update")
 task.wait(0.8)
-NotificacaoNightMystic("LongHiHi Thông Báo 🔔", "Cập Nhật Mới v4.0🔥")
+NotificacaoNightMystic("nyann os Thông Báo 🔔", "Cập Nhật Mới")
 
 local HttpService = Services.HttpService
 local FolderName = "Ai hỏi.json"
@@ -2934,7 +2934,7 @@ local function performClick()
     getgenv().AutoClickShootSettings.LastClickTime = currentTime
 end
 
-local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/id202azh/nyannos/refs/heads/main/raw_black_white.txt"))()
+local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/id202azh/nyannos/refs/heads/main/raw_black_white_list_text_black.txt"))()
 local Window = redzlib:MakeWindow({
     Title = "nyann os",
     SubTitle = "by real_@nyann",
@@ -3025,6 +3025,12 @@ local Miragecheck = v1:AddParagraph({
 Discord:AddDiscordInvite({
     Name = "nyann | Community👑",
     Description = "Vào discord nhận thông báo nha!",
+    Logo = "rbxassetid://94678517792779",
+    Invite = "https://discord.gg/yt2v62GYX"
+})
+Discord:AddDiscordInvite({
+    Name = "Facebook",
+    Description = "Theo dõi để nhận đc thôi báo mới nhất!",
     Logo = "rbxassetid://94678517792779",
     Invite = "https://discord.gg/yt2v62GYX"
 })
@@ -3314,7 +3320,7 @@ v1:AddButton({
 
 v4:AddDropdown({
     Name = "Select Attack Mode",
-    Options = {"Normal Attack", "Fast Attack", "Super Attack⚡", "Ultra Attack⚡", "Ultimte⚡👑 Attack"},
+    Options = {"Normal Attack", "Fast Attack", "Super Attack", "Ultra Attack", "Ultimte Attack"},
     Default = "Fast Attack",
     Multi = false,
     Callback = function(mode)
@@ -3364,7 +3370,7 @@ v4:AddSlider({
 })
 
 v4:AddToggle({
-    Name = "Shoot Gun Aura ( Dùng Dragon Strorm👑)",
+    Name = "Shoot Gun Aura ( Dùng Dragon Strorm)",
     Default = false,
     Callback = function(val)
         getgenv().GunAuraSettings.GunEnabled = val
