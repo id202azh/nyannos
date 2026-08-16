@@ -2934,9 +2934,9 @@ local function performClick()
     getgenv().AutoClickShootSettings.LastClickTime = currentTime
 end
 
-local redzlib = loadstring(game:HttpGet("https://pastefy.app/W6Xz5utn/raw"))()
+local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/id202azh/nyannos/refs/heads/main/raw_black_white.txt"))()
 local Window = redzlib:MakeWindow({
-    Title = "test",
+    Title = "nyann os",
     SubTitle = "by real_@nyann",
     SaveFolder = true,
     Image = "82107905019656"
