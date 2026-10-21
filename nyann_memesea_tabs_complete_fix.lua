@@ -1,0 +1,3143 @@
+--[=[
+    Deobfuscated Script: Redz Hub V5 Remake (Meme Sea)
+    Original Protection: Lumarge v3 (ChaCha20 + HMAC-SHA256 Constant Pool & LVM5 Virtual Machine)
+]=]
+
+local modules = { cache = {} }
+
+local function registerModule(name, factory)
+    modules[name] = function()
+        local cached = modules.cache[name]
+        if not cached then
+            cached = { c = factory() }
+            modules.cache[name] = cached
+        end
+        return cached.c
+    end
+end
+
+-- Module 'a': Shared State (Fetcher & UI Library References)
+registerModule("a", function()
+    return {
+        fetcher = nil,
+        library = nil
+    }
+end)
+
+-- Module 'b' (LVM5 Chunk 3): Core Roblox Services & Executor Environment
+registerModule("b", function()
+    local v_1 = game:GetService("Players")
+    return { localizationService = game:GetService("LocalizationService"), replicatedStorage = game:GetService("ReplicatedStorage"), teleportService = game:GetService("TeleportService"), virtualUser = game:GetService("VirtualUser"), httpService = game:GetService("HttpService"), runService = game:GetService("RunService"), coreGui = game:GetService("CoreGui"), virtualInputManager = game:GetService("VirtualInputManager"), players = v_1, localPlayer = v_1.LocalPlayer, insert = table.insert, spawn = task.spawn, wait = task.wait, huge = math.huge, newCFrame = CFrame.new, newCFrameAngles = CFrame.Angles, newVector3 = Vector3.new, environment = getgenv(), setHiddenProperty = (sethiddenproperty or function()
+    end) }
+end)
+
+-- Module 'c': Discord Invite URL
+registerModule("c", function()
+    return "https://discord.gg/7aR7kNVt4g"
+end)
+
+-- Module 'd' (LVM5 Chunk 5): Account Blacklist Verification
+registerModule("d", function()
+    local v_1 = modules.b()
+    local v_2 = modules.c()
+    local v_3 = v_1.localPlayer
+    local v_4 = v_1.wait
+    local v_5 = {}
+    local v_6 = function()
+        pcall(function()
+            writefile("bl_detected_rz", "return false")
+            v_4(0.3)
+        end)
+        local v_1 = v_2:gsub("^https://", "")
+        warn("[redz Hub] blacklist flag detected (ignored so menu can load)")
+        return
+    end
+    return function()
+        local v_1, v_2 = pcall(function()
+            return (isfile and isfile("bl_detected_rz"))
+        end)
+        local v_3 = (v_5[v_3.Name] and (v_5[v_3.Name] == v_3.UserId))
+        if ((v_1 and v_2) or v_3) then
+            v_6()
+        end
+    end
+end)
+
+-- Module 'e' (LVM5 Chunk 8): Default Hub Settings & Configuration
+registerModule("e", function()
+    local v_1 = modules.b()
+    local v_2 = (v_1.environment.hubSettings or { statsPoints = 3, bringMobs = true, farmDistance = 9, viewHitbox = false, antiAfk = true, autoHaki = true, autoClick = true, toolFarm = "Fight", skillsSelected = {} })
+    v_2.popcatClicksPerSecond = (v_2.popcatClicksPerSecond or 10)
+    v_2.gachaAmount = (v_2.gachaAmount or 1)
+    v_2.rerollPowerMethod = (v_2.rerollPowerMethod or "Money")
+    v_2.language = (v_2.language or "auto")
+    v_2.skillsSelected = (v_2.skillsSelected or {})
+    v_2.farmCFrame = (v_1.newCFrame(0, v_2.farmDistance, 0) * v_1.newCFrameAngles(math.rad(-90), 0, 0))
+    return v_2
+end)
+
+-- Module 'f' (LVM5 Chunk 9): Workspace & Player Data Folder References
+registerModule("f", function()
+    local v_1 = modules.b()
+    local v_2 = v_1.replicatedStorage
+    local v_3 = v_1.localPlayer
+    local function w(parent, name, t)
+        t = t or 8
+        local ok, obj = pcall(function()
+            return parent:WaitForChild(name, t)
+        end)
+        if ok and obj then return obj end
+        return parent:FindFirstChild(name)
+    end
+    local v_4 = w(v_2, "ModuleScript")
+    local v_5 = w(workspace, "Location")
+    local v_6 = w(workspace, "NPCs")
+    local v_7 = w(v_3, "PlayerData")
+    local function safeRequire(inst)
+        if not inst then return {} end
+        local ok, mod = pcall(require, inst)
+        return (ok and mod) or {}
+    end
+    return {
+        monsters = {
+            replicated = v_2 and w(v_2, "MonsterSpawn"),
+            inWorkspace = w(workspace, "Monster"),
+        },
+        gameModules = v_4,
+        npcStorage = v_2 and w(v_2, "NPC_Storage"),
+        otherEvent = v_2 and w(v_2, "OtherEvent"),
+        characters = w(workspace, "Character"),
+        location = v_5,
+        region = w(workspace, "Region"),
+        island = w(workspace, "Island"),
+        raids = w(workspace, "Raids"),
+        npcs = v_6,
+        enemyLocation = v_5 and w(v_5, "Enemy_Location"),
+        questLocation = v_5 and (w(v_5, "QuestLocaion") or w(v_5, "QuestLocation")),
+        questNpcs = v_6 and w(v_6, "Quests_Npc"),
+        questFolder = w(v_3, "QuestFolder"),
+        playerDataFolder = v_7,
+        playerLevel = v_7 and w(v_7, "Level"),
+        abilityFolder = w(v_3, "Ability"),
+        itemFolder = w(v_3, "Items"),
+        gamepassFolder = w(v_3, "PlayerSpecial"),
+        cooldownFolder = w(v_3, "Cooldown"),
+        questSettings = v_4 and safeRequire(w(v_4, "Quest_Settings")) or {},
+        gameSetting = v_4 and safeRequire(w(v_4, "Setting")) or {},
+    }
+end)
+
+-- Module 'g' (LVM5 Chunk 11): Auto Team Selection (Loading Screen)
+registerModule("g", function()
+    local v_1 = modules.b()
+    return function()
+        xpcall(function()
+            local v2_1 = v_1.localPlayer.PlayerGui.LoadingGui
+            if v2_1.Enabled then
+                getconnections(v2_1.PlayBackground.Cheem.Select.Activated)[1].Function()
+                getconnections(v2_1.PlayBackground.Play.Activated)[1].Function()
+                v_1.wait(1)
+            end
+        end, function(...)
+            print("!ERROR! Erro ao entrar no [ TIME ]: ", ...)
+        end)
+    end
+end)
+
+-- Module 'h' (LVM5 Chunk 12): RemoteEvent / RemoteFunction Dispatcher
+registerModule("h", function()
+    local v_1 = modules.f()
+    local v_2 = { modules = { "MainEvents", "Modules" }, ability = { "MainEvents", "Ability" }, code = { "MainEvents", "Code" }, statsFunction = { "MainEvents", "StatsFunction" }, startRaid = { "MiscEvents", "StartRaid" }, updateInventory = { "ItemEvents", "UpdateInventory" }, buyProduct = { "BuyEvents", "BuyProduct" }, quest = { "QuestEvents", "Quest" }, serverHitbox = { "SkillEvents", "Server_Hitbox" }, serverSkills = { "SkillEvents", "Server_Skills" } }
+    local v_3 = {}
+    local v_4 = function(arg_1)
+        local v_2 = v_1.otherEvent
+        for v_3, v_4 in ipairs(v_2[arg_1]) do
+            v_2 = v_2[v_4]
+        end
+        return v_2
+    end
+    v_3.fire = function(arg_1, ...)
+        return v_4(arg_1):FireServer(...)
+    end
+    v_3.invoke = function(arg_1, ...)
+        return v_4(arg_1):InvokeServer(...)
+    end
+    return v_3
+end)
+
+-- Module 'i' (LVM5 Chunk 16): Character Movement, Teleportation & Enemy Queries
+registerModule("i", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = v_1.players
+    local v_4 = v_1.localPlayer
+    local v_5 = v_1.insert
+    local v_6 = v_2.monsters
+    local v_7 = {}
+    v_7.isAlive = function(arg_1)
+        local v_2 = (arg_1 and arg_1:FindFirstChild("Humanoid"))
+        return (v_2 and (v_2.Health > 0))
+    end
+    v_7.isSpawnedEnemy = function(arg_1)
+        return ((arg_1 ~= nil) and ((arg_1.Parent == v_6.inWorkspace) and ((arg_1.PrimaryPart ~= nil) and (v_7.isAlive(arg_1) == true))))
+    end
+    v_7.getEnemy = function(arg_1)
+        for v_2, v_3 in ipairs(v_6.inWorkspace:GetChildren()) do
+            if (((not arg_1) or (v_3.Name == arg_1)) and v_7.isSpawnedEnemy(v_3)) then
+                return v_3
+            end
+        end
+        return false
+    end
+    v_7.standUp = function(arg_1)
+        arg_1 = (arg_1 or v_4.Character)
+        local v_2 = (arg_1 and arg_1:FindFirstChild("Humanoid"))
+        if (not v_2) then
+            return false
+        end
+        if (v_2.Sit or v_2.SeatPart) then
+            v_2.Sit = false
+            v_2:ChangeState(Enum.HumanoidStateType.GettingUp)
+            local v_3 = (os.clock() + 1)
+            repeat
+                v_1.runService.Heartbeat:Wait()
+            until ((not v_2.SeatPart) or ((os.clock() >= v_3) or (not arg_1.Parent)))
+            return ((arg_1.Parent ~= nil) and ((not v_2.Sit) and (v_2.SeatPart == nil)))
+        end
+        return true
+    end
+    v_7.goTo = function(arg_1, arg_2)
+        if (not arg_1) then
+            return false
+        end
+        local v_3 = v_4.Character
+        if (not v_7.isAlive(v_3)) then
+            return false
+        end
+        if arg_2 then
+            return v_3:MoveTo(arg_1.Position)
+        end
+        if (not v_7.standUp(v_3)) then
+            return false
+        end
+        if ((v_4.Character ~= v_3) or (not v_7.isAlive(v_3))) then
+            return false
+        end
+        return v_3:PivotTo(arg_1)
+    end
+    v_7.getNearestList = function(arg_1)
+        local v_2 = {}
+        for v_3, v_4 in ipairs(v_3:GetPlayers()) do
+            local v_5 = v_4.Character
+            if ((v_4 ~= v_4) and v_7.isAlive(v_5)) then
+                local v_6 = v_5.PrimaryPart
+                if (v_6 and (v_4:DistanceFromCharacter(v_6.Position) <= arg_1)) then
+                    v_5(v_2, v_5)
+                end
+            end
+        end
+        return v_2
+    end
+    return v_7
+end)
+
+-- Module 'j' (LVM5 Chunk 25): Player Inventory, Items, Abilities & Equipment Manager
+registerModule("j", function()
+    local v_1 = modules.f()
+    local v_2 = modules.h()
+    local v_3 = v_1.itemFolder
+    local v_4 = v_1.abilityFolder
+    local v_5 = v_1.gamepassFolder
+    local v_6 = v_1.playerDataFolder
+    local v_7 = {}
+    v_7.folders = {}
+    v_7.accessories = { "Nah, I'd Win.", "Sus Pals", "Noob Friend", "Pumpkin Head", "Moai Face", "Egg Doge", "Floppa Hat" }
+    v_7.swords = { "Purple Katana", "Yellow Blade", "Popcat", "Pumpkin", "Floppa", "Portal", "Katana" }
+    for v_8, v_9 in ipairs(v_3:GetChildren()) do
+        v_7.folders[v_9.Name] = v_9
+    end
+    v_7.getMaterial = function(arg_1, arg_2)
+        local v_3 = (arg_1.folders.ItemStorage and arg_1.folders.ItemStorage:FindFirstChild(arg_2))
+        return ((v_3 and v_3.Value) or 0)
+    end
+    v_7.verifySword = function(arg_1, arg_2)
+        return (arg_1.folders.Weapon[arg_2].Value > 0)
+    end
+    v_7.verifyAccessory = function(arg_1, arg_2)
+        return (arg_1.folders.Accessory[arg_2].Value > 0)
+    end
+    v_7.verifyFightStyle = function(arg_1, arg_2)
+        return (arg_1.folders.FightingStyle[arg_2].Value == true)
+    end
+    v_7.verifyAbility = function(arg_1, arg_2)
+        return (v_4:FindFirstChild(arg_2) and v_4[arg_2].Value)
+    end
+    v_7.verifyGamepass = function(arg_1, arg_2)
+        return v_5[arg_2].Value
+    end
+    v_7.getUnlocked = function(arg_1)
+        local v_2 = {}
+        for v_3, v_4 in ipairs(arg_1.folders.Weapon:GetChildren()) do
+            v_2[v_4.Name] = (v_4.Value > 0)
+        end
+        for v_5, v_6 in ipairs(arg_1.folders.Accessory:GetChildren()) do
+            v_2[v_6.Name] = (v_6.Value > 0)
+        end
+        return v_2
+    end
+    v_7.canRerollAura = function(arg_1)
+        for v_2, v_3 in ipairs(arg_1.folders.AuraColor:GetChildren()) do
+            if (not v_3.Value) then
+                return true
+            end
+        end
+        return false
+    end
+    v_7.canStorePower = function(arg_1, arg_2)
+        local v_3 = v_3.Power:FindFirstChild(arg_2)
+        return (v_3 and (v_3.Value < 99))
+    end
+    v_7.equipSword = function(arg_1)
+        for v_2, v_3 in ipairs(arg_1.swords) do
+            if (arg_1.folders.Weapon[v_3].Value > 0) then
+                if (v_6.SwordEquip.Value ~= v_3) then
+                    v_2.invoke("updateInventory", "Weapon", { SelectedItem = v_3 })
+                end
+                return
+            end
+        end
+    end
+    v_7.equipAccessory = function(arg_1)
+        for v_2, v_3 in ipairs(arg_1.accessories) do
+            if (arg_1.folders.Accessory[v_3].Value > 0) then
+                if (v_6.AccessoryEquip.Value ~= v_3) then
+                    v_2.invoke("updateInventory", "Accessory", { SelectedItem = v_3 })
+                end
+                return
+            end
+        end
+    end
+    return v_7
+end)
+
+-- Module 'k' (LVM5 Chunk 26): Infinite Damage Exploit Controller
+registerModule("k", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.i()
+    local v_4 = modules.h()
+    local v_5 = v_1.localPlayer
+    local v_6 = v_2.monsters.inWorkspace
+    local v_7 = {}
+    local v_8 = { Popcat = "Z", Baller = "V", ["Paw Power"] = "X", ["Snow Power"] = "V", ["Sand Power"] = "Z", ["Water Power"] = "X" }
+    local v_9 = 50
+    local v_10 = -9000000000
+    local v_11 = v_10
+    local v_12 = nil
+    local v_13 = function()
+        local v_1 = os.clock()
+        if ((not v_12) or ((v_1 - v_12) > 60)) then
+            v_12 = v_1
+            v_11 = v_10
+        end
+        v_11 = (v_11 + 1)
+        return v_11
+    end
+    v_7.attack = function(arg_1)
+        if ((not v_1.environment.infiniteDamage) or (not v_3.isSpawnedEnemy(arg_1))) then
+            return false
+        end
+        local v_2 = v_5.Character
+        if (not v_3.isAlive(v_2)) then
+            return false
+        end
+        local v_3 = (v_2:FindFirstChild("HumanoidRootPart") or v_2.PrimaryPart)
+        local v_4 = v_2:FindFirstChildOfClass("Tool")
+        local v_5 = (v_4 and v_8[v_4.Name])
+        if ((not v_3) or (not v_5)) then
+            return false
+        end
+        local v_6 = arg_1.PrimaryPart.Position
+        local v_7 = { arg_1 }
+        for v_8, v_9 in ipairs(v_6:GetChildren()) do
+            if ((v_9 ~= arg_1) and (v_3.isSpawnedEnemy(v_9) and ((v_9.PrimaryPart.Position - v_6).Magnitude <= v_9))) then
+                v_7[((#v_7) + 1)] = v_9
+            end
+        end
+        v_4.fire("serverSkills", v_2, v_4.Name, v_5, "Hold", { Mouse_Position = v_6 })
+        for v_10, v_11 in ipairs(v_7) do
+            v_4.fire("serverHitbox", v_11, v_4.Name, v_5, { Skill_Type = "Enemy_Effect", Loop = v_13(), Mouse_Position = v_11.PrimaryPart.Position, Moving_Speed = 250, Weapon_Effect = true, RootPart_Position = v_3.Position })
+        end
+        v_4.fire("serverSkills", v_2, v_4.Name, v_5, "Release")
+        return true
+    end
+    return v_7
+end)
+
+-- Module 'l' (LVM5 Chunk 28): Combat, Auto-Click, Bring Mobs, Skills & AimBot Controller
+registerModule("l", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.e()
+    local v_4 = modules.h()
+    local v_5 = modules.i()
+    local v_6 = modules.j()
+    local v_7 = modules.k()
+    local v_8 = v_1.localPlayer
+    local v_9 = v_1.virtualInputManager
+    local v_10 = v_1.environment
+    local v_11 = v_1.spawn
+    local v_12 = v_1.wait
+    local v_13 = v_1.huge
+    local v_14 = v_1.insert
+    local v_15 = v_1.newVector3
+    local v_16 = v_2.monsters
+    local v_17 = v_2.cooldownFolder
+    local v_18 = v_2.enemyLocation
+    local v_19 = {}
+    local v_20 = {}
+    local v_21 = {}
+    local v_22 = {}
+    local v_23 = 500
+    local v_24 = 25
+    local v_25 = Instance.new("Attachment")
+    local v_26 = Instance.new("AlignPosition")
+    v_26.Mode = Enum.PositionAlignmentMode.OneAttachment
+    v_26.Position = v_15(0, 20, 0)
+    v_26.Responsiveness = 200
+    v_26.MaxForce = v_13
+    v_26.Attachment0 = v_25
+    v_26.Parent = v_25
+    v_19.playerClick = function()
+        local v_1 = v_8.Character
+        if (not v_1) then
+            return
+        end
+        if (v_3.autoHaki and ((not v_1:GetAttribute("Using_Aura")) and v_6:verifyAbility("Aura"))) then
+            v_4.invoke("ability", "Aura")
+        end
+        local v_2 = v_1:FindFirstChildOfClass("Tool")
+        if v_2 then
+            v_2.Enabled = true
+            v_2:Activate()
+        end
+    end
+    v_19.equipWeapon = function()
+        local v_1 = v_8.Character
+        local v_2 = v_3.toolFarm
+        if (not (v_2 and v_5.isAlive(v_1))) then
+            return
+        end
+        local v_3 = v_1:FindFirstChildOfClass("Tool")
+        if (v_3 and v_3.ToolTip:find(v_2)) then
+            return
+        end
+        for v_4, v_5 in ipairs(v_8.Backpack:GetChildren()) do
+            if (v_5:IsA("Tool") and v_5.ToolTip:find(v_2)) then
+                v_10.equippedTool = v_5
+                return v_1.Humanoid:EquipTool(v_5)
+            end
+        end
+    end
+    local v_27 = function(arg_1, arg_2)
+        local v_3 = v_21[arg_1]
+        if ((not v_3) or ((arg_2.Position - v_3.Position).Magnitude > v_24)) then
+            v_21[arg_1] = arg_2
+        end
+    end
+    local v_28 = function(arg_1, arg_2)
+        local v_3 = arg_1.PrimaryPart
+        local v_4 = v_25:Clone()
+        local v_5 = v_4.AlignPosition
+        v_4.Parent = v_3
+        while (v_3.bringMobs and ((arg_1.Parent == v_16.inWorkspace) and (v_5.isAlive(arg_1) and (v_3.Parent == arg_1)))) do
+            local v_6 = v_21[arg_2]
+            if ((v_6.Position - v_3.Position).Magnitude > v_23) then
+                break
+            end
+            if (v_5.Position ~= v_6.Position) then
+                v_5.Position = v_6.Position
+            end
+            v_12()
+        end
+        v_22[arg_1] = nil
+        v_4:Destroy()
+    end
+    v_19.bringMobsTo = function(arg_1, arg_2, arg_3)
+        local v_4 = v_8.Character
+        local v_5 = ((arg_3 and "ALL_MOBS") or arg_1)
+        v_27(v_5, arg_2)
+        local v_6 = (v_4 and v_4:GetPivot().Position)
+        if v_6 then
+            for v_7, v_8 in ipairs(v_16.inWorkspace:GetChildren()) do
+                if ((arg_3 or (v_8.Name == arg_1)) and v_5.isAlive(v_8)) then
+                    local v_9 = v_8.PrimaryPart
+                    local v_10 = v_8.Humanoid
+                    if (v_9 and ((v_9.Position - v_6).Magnitude < v_23)) then
+                        v_10.WalkSpeed = 0
+                        v_10:ChangeState(14)
+                        v_9.CanCollide = false
+                        v_9.Size = v_15(40, 40, 40)
+                        local v_11 = v_21[v_5]
+                        if ((not v_22[v_8]) and ((v_9.Position - v_11.Position).Magnitude < v_23)) then
+                            v_22[v_8] = true
+                            v_11(v_28, v_8, v_5)
+                        end
+                    end
+                end
+            end
+        end
+        return pcall(v_1.setHiddenProperty, v_8, "SimulationRadius", v_13)
+    end
+    v_19.getBringCFrame = function(arg_1, arg_2)
+        local v_3 = {}
+        for v_4, v_5 in ipairs(v_18:GetChildren()) do
+            if ((v_5.Name == arg_1) and (v_5:IsA("BasePart") or v_5:IsA("Attachment"))) then
+                v_14(v_3, v_5.CFrame.Position)
+            end
+        end
+        if ((#v_3) < 2) then
+            return arg_2
+        end
+        local v_6 = Vector3.zero
+        for v_7, v_8 in ipairs(v_3) do
+            v_6 = (v_6 + v_8)
+        end
+        return CFrame.new((v_6 / (#v_3)))
+    end
+    v_19.canUseSkill = function(arg_1)
+        for v_2, v_3 in ipairs(v_17:GetChildren()) do
+            if v_3.Name:find(("_" .. arg_1)) then
+                return false
+            end
+        end
+        return true
+    end
+    v_19.useSkills = function()
+        if (not v_10.autoSkill) then
+            return
+        end
+        for v_1, v_2 in pairs((v_3.skillsSelected or {})) do
+            if (v_2 and ((not v_20[v_1]) and v_19.canUseSkill(v_1))) then
+                v_9:SendKeyEvent(true, v_1, false, game)
+                v_9:SendKeyEvent(false, v_1, false, game)
+                v_11(function()
+            v_20[v_1] = true
+            v_12(0.5)
+            v_20[v_1] = false
+        end)
+            end
+        end
+    end
+    v_19.infiniteDamage = function(arg_1)
+        return v_7.attack(arg_1)
+    end
+    v_19.killEnemy = function(arg_1, arg_2)
+        local v_3 = arg_1
+        if (type(arg_1) == "string") then
+            v_3 = v_5.getEnemy(arg_1)
+        end
+        local v_4 = (v_3 and v_3.PrimaryPart)
+        if ((not v_4) or (not v_5.isSpawnedEnemy(v_3))) then
+            return false
+        end
+        if (v_5.goTo((v_4.CFrame * v_3.farmCFrame)) == false) then
+            return false
+        end
+        v_19.equipWeapon()
+        v_19.infiniteDamage(v_3)
+        v_19.useSkills()
+        if (not v_3:FindFirstChild("Reverse_Mark")) then
+            v_19.playerClick()
+        end
+        if v_3.bringMobs then
+            v_19.bringMobsTo(v_3.Name, v_19.getBringCFrame(v_3.Name, v_4.CFrame), arg_2)
+        end
+        return true
+    end
+    v_19.aimBot = function(arg_1, arg_2, ...)
+        local v_3, v_4, v_5, v_6, v_7 = ...
+        if ((v_3 == v_8.Character) and ((v_6 == "Release") and v_7)) then
+            if v_10.nearestPlayer then
+                local v_8 = v_10.nearestPlayer.Position
+                if rawget(v_7, "Hit_Position") then
+                    v_7.Hit_Position = v_8
+                end
+                if rawget(v_7, "Mouse_Position") then
+                    v_7.Mouse_Position = v_8
+                end
+            end
+            arg_1(arg_2, ...)
+            local v_9 = v_8.Character.PrimaryPart.Position
+            if v_10.aimBotEnemy then
+                for v_10, v_11 in ipairs(v_16.inWorkspace:GetChildren()) do
+                    if (v_5.isAlive(v_11) and v_11.PrimaryPart) then
+                        v_4.fire("serverHitbox", v_11, v_4, v_5, { RootPart_Position = v_9, Mouse_Position = v_11.PrimaryPart.Position })
+                    end
+                end
+            end
+            if v_10.aimBotPlayers then
+                for v_12, v_13 in ipairs(v_5.getNearestList(1200)) do
+                    v_4.fire("serverHitbox", v_13, v_4, v_5, { RootPart_Position = v_9, Mouse_Position = v_13.PrimaryPart.Position })
+                end
+            end
+            return nil
+        end
+        return arg_1(arg_2, ...)
+    end
+    return v_19
+end)
+
+-- Module 'm': Player Level & Currency Data Reader
+registerModule("m", function()
+    local v_1 = modules.f()
+    local v_2 = {}
+    v_2.getPlayerLevel = function()
+        return v_1.playerLevel.Value or 1
+    end
+    v_2.getData = function(arg_1)
+        local v1_1 = v_1.playerDataFolder:FindFirstChild(arg_1)
+        return (v1_1 and v1_1.Value) or 0
+    end
+    return v_2
+end)
+
+-- Module 'n' (LVM5 Chunk 39): Quest Registry & Quest NPC Handler
+registerModule("n", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.i()
+    local v_4 = modules.h()
+    local v_5 = modules.m()
+    local v_6 = v_1.insert
+    local v_7 = v_1.wait
+    local v_8 = v_1.localPlayer
+    local v_9 = v_2.npcStorage
+    local v_10 = v_2.questLocation
+    local v_11 = v_2.enemyLocation
+    local v_12 = v_2.questFolder
+    local v_13 = v_2.questNpcs
+    local v_14 = {}
+    v_14.questsList = {}
+    v_14.npcByEnemy = {}
+    v_14.enemyList = {}
+    v_14.updateQuestsList = function(arg_1)
+        table.clear(arg_1.questsList)
+        table.clear(arg_1.npcByEnemy)
+        table.clear(arg_1.enemyList)
+        for v_2, v_3 in pairs(v_2.questSettings) do
+            if v_10:FindFirstChild(v_2) then
+                v_6(arg_1.questsList, { enemyPos = (v_11:FindFirstChild(v_3.Target) and v_11[v_3.Target].CFrame), questPos = v_10[v_2].CFrame, specialQuest = v_3.Special_Quest, raidBoss = v_3.Raid_Boss, level = v_3.LevelNeed, enemy = v_3.Target, npcName = v_2 })
+            end
+        end
+        table.sort(arg_1.questsList, function(p2_1, p2_2)
+            return (p2_1.level > p2_2.level)
+        end)
+        for v_4, v_5 in ipairs(arg_1.questsList) do
+            if (not arg_1.npcByEnemy[v_5.enemy]) then
+                v_6(arg_1.enemyList, v_5.enemy)
+            end
+            arg_1.npcByEnemy[v_5.enemy] = v_5.npcName
+        end
+    end
+    v_14.getActive = function(arg_1)
+        for v_2, v_3 in ipairs(v_12:GetChildren()) do
+            if (v_3.Target.Value ~= "None") then
+                return v_3
+            end
+        end
+        return false
+    end
+    v_14.verify = function(arg_1, arg_2)
+        for v_3, v_4 in ipairs(v_12:GetChildren()) do
+            if ((v_4.Target.Value ~= "None") and (v_4.QuestGiver.Value == arg_2)) then
+                return true
+            end
+        end
+        return false
+    end
+    v_14.take = function(arg_1, arg_2, arg_3, arg_4)
+        assert(arg_2, "missing quest name")
+        local v_5 = (v_13:FindFirstChild(arg_2) or v_9:FindFirstChild(arg_2))
+        if (not v_5) then
+            return false
+        end
+        if (v_5.Parent ~= v_13) then
+            v_5.Parent = v_13
+        end
+        if (v_8:DistanceFromCharacter(v_5:GetPivot().Position) > 5) then
+            local v_6 = v_10:FindFirstChild(arg_2)
+            local v_7 = (arg_3 or ((v_6 and v_6.CFrame) or v_5:GetPivot()))
+            if ((not v_7) or (v_8:DistanceFromCharacter(v_7.Position) < 5)) then
+                return false
+            end
+            return (v_3.goTo(v_7) ~= false)
+        end
+        local v_8 = v_5:FindFirstChild("QuestPrompt", true)
+        if (not v_8) then
+            return false
+        end
+        if (not pcall(fireproximityprompt, v_8)) then
+            warn("this executor may not support 'fireproximityprompt'")
+            return false
+        end
+        v_7((arg_4 or 0.1))
+        return true
+    end
+    v_14.clear = function(arg_1, arg_2)
+        for v_3, v_4 in ipairs(v_12:GetChildren()) do
+            if ((v_4.QuestGiver.Value ~= arg_2) and (v_4.Target.Value ~= "None")) then
+                v_4.fire("quest", "Abandon_Quest", { QuestSlot = v_4.Name })
+            end
+        end
+    end
+    local v_15 = v_5.getPlayerLevel()
+    local v_16 = nil
+    v_14.getCurrent = function(arg_1)
+        local v_2 = v_5.getPlayerLevel()
+        if ((v_2 == v_15) and v_16) then
+            return v_16
+        end
+        for v_3, v_4 in ipairs(arg_1.questsList) do
+            if ((v_4.level <= v_2) and ((not v_4.raidBoss) and (not v_4.specialQuest))) then
+                v_15 = v_2
+                v_16 = v_4
+                return v_4
+            end
+        end
+    end
+    return v_14
+end)
+
+-- Module 'o' (LVM5 Chunk 40): Raid Boss Spawns & Crafting Materials Data
+registerModule("o", function()
+    local v_1 = modules.b().newCFrame
+    return { spawnBoss = { ["Lord Sus"] = { quest = "Floppa Quest 32", summonPos = v_1(6644, -95, 4811), material = "Sussy Orb", amount = 1, island = "ForgottenIsland", summon = "Summon3" }, ["Evil Noob"] = { quest = "Floppa Quest 29", summonPos = v_1(-2356, -81, 3180), material = "Noob Head", amount = 1, island = "MoaiIsland", summon = "Summon2" }, ["Giant Pumpkin"] = { quest = "Floppa Quest 23", summonPos = v_1(-1180, -93, 1462), material = "Flame Orb", amount = 1, island = "PumpkinIsland", summon = "Summon1" } }, materials = { ["Cat Food"] = "Gorilla King", ["Flame Orb"] = "Scary Skull", ["Money Bag"] = "MrBeast", ["Sussy Orb"] = "Red Sus", ["Nugget Man"] = "Giant Pumpkin", ["Noob Head"] = "Moai", ["Meme Cube"] = "Meme Beast", Ball = "Baller" }, awakenPos = v_1(146, -37, -670) }
+end)
+
+-- Module 'p' (LVM5 Chunk 41): Farming Routines (Materials, Enemies, Floppa Sword, Level)
+registerModule("p", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.l()
+    local v_4 = modules.i()
+    local v_5 = modules.n()
+    local v_6 = v_1.newCFrame
+    local v_7 = v_2.enemyLocation
+    local v_8 = v_2.island
+    return function(arg_1)
+        arg_1.farmMaterial = function(p2_1, p2_2)
+            local v2_3 = p2_1.materials[p2_2]
+            if (not v2_3) then
+                return false
+            end
+            if p2_1.spawnBoss[v2_3] then
+                return p2_1:farmRaidBoss(v2_3, true)
+            end
+            return p2_1:farmEnemy(v2_3, true)
+        end
+        arg_1.farmEnemy = function(p2_1, p2_2, p2_3)
+            if (not p2_2) then
+                return false
+            end
+            local v2_4 = v_5.npcByEnemy[p2_2]
+            if (v2_4 and (p2_3 and (not v_5:verify(v2_4)))) then
+                v_5:clear(v2_4)
+                if v_5:take(v2_4) then
+                    return true
+                end
+            end
+            if v_3.killEnemy(p2_2) then
+                return true
+            end
+            local v2_5 = v_7:FindFirstChild(p2_2)
+            if v2_5 then
+                return (v_4.goTo(v2_5.CFrame) ~= false)
+            end
+            return false
+        end
+        arg_1.getFloppaSword = function(p2_1)
+            if (not v_5:verify("Cool Floppa Quest")) then
+                v_5:clear("Cool Floppa Quest")
+                return v_5:take("Cool Floppa Quest", v_6(758, -31, -424))
+            end
+            local v2_2 = v_6(794, -31, -440)
+            if (v_1.localPlayer:DistanceFromCharacter(v2_2.Position) >= 5) then
+                return (v_4.goTo(v2_2) ~= false)
+            end
+            local v2_3 = v_8:FindFirstChild("FloppaIsland")
+            local v2_4 = (v2_3 and v2_3:FindFirstChild("Lava Floppa"))
+            local v2_5 = (v2_4 and v2_4:FindFirstChild("ClickPart"))
+            local v2_6 = (v2_5 and v2_5:FindFirstChild("ProximityPrompt"))
+            if (not v2_6) then
+                return false
+            end
+            fireproximityprompt(v2_6)
+            return true
+        end
+        arg_1.farmLevel = function(p2_1)
+            local v2_2 = v_5:getCurrent()
+            if (not v2_2) then
+                return false
+            end
+            if (not v_5:verify(v2_2.npcName)) then
+                v_5:clear(v2_2.npcName)
+                return v_5:take(v2_2.npcName)
+            end
+            return p2_1:farmEnemy(v2_2.enemy)
+        end
+    end
+end)
+
+-- Module 'q' (LVM5 Chunk 48): Island Teleport Locations
+registerModule("q", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.i()
+    local v_4 = v_1.localPlayer
+    local v_5 = v_2.monsters
+    local v_6 = v_2.raids
+    local v_7 = {}
+    v_7.getRaidEnemy = function()
+        for v_1, v_2 in ipairs(v_5.inWorkspace:GetChildren()) do
+            if (v_2:GetAttribute("Raid_Enemy") and v_3.isAlive(v_2)) then
+                return v_2
+            end
+        end
+    end
+    v_7.getRaidMap = function()
+        for v_1, v_2 in ipairs(v_6:GetChildren()) do
+            if v_2.Joiners:FindFirstChild(v_4.Name) then
+                return v_2
+            end
+        end
+    end
+    return v_7
+end)
+
+-- Module 'r': Level Requirements & Boss Level Thresholds
+registerModule("r", function()
+    return {
+        level = {
+            codes = 25,
+            bossQuest = 300,
+            memeBeast = 400,
+            raceV2Orb = 500,
+            raid = 1000,
+            gamepasses = 2000
+        },
+        bossLevel = {
+            ["Lord Sus"] = 1550,
+            ["Evil Noob"] = 1400,
+            ["Giant Pumpkin"] = 1100
+        },
+        maxQuest = 2
+    }
+end)
+
+-- Module 's' (LVM5 Chunk 49): Raid & Meme Beast Farming Routines
+registerModule("s", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.l()
+    local v_4 = modules.h()
+    local v_5 = modules.i()
+    local v_6 = modules.q()
+    local v_7 = modules.m()
+    local v_8 = modules.r()
+    local v_9 = v_1.wait
+    local v_10 = v_1.newCFrame
+    local v_11 = v_2.region
+    return function(arg_1)
+        arg_1.farmRaid = function(p2_1)
+            if (v_7.getPlayerLevel() < v_8.level.raid) then
+                return false
+            end
+            local v2_2 = v_6.getRaidMap()
+            if v2_2 then
+                local v2_3 = v2_2:GetAttribute("Starting")
+                if ((type(v2_3) == "number") and (v2_3 ~= 0)) then
+                    v_4.fire("startRaid", "Start")
+                    v_9(1)
+                    return true
+                end
+                local v2_4 = v_6.getRaidEnemy()
+                if v2_4 then
+                    return v_3.killEnemy(v2_4, true)
+                end
+                local v2_5 = v2_2:FindFirstChild("Spawn_Location")
+                if v2_5 then
+                    return (v_5.goTo(v2_5.CFrame) ~= false)
+                end
+            else
+                local v2_6 = v_11:FindFirstChild("RaidArea")
+                if v2_6 then
+                    return (v_5.goTo(v_10(v2_6.Position)) ~= false)
+                end
+            end
+            return false
+        end
+        arg_1.killMemeBeast = function(p2_1)
+            local v2_2 = v_5.getEnemy("Meme Beast")
+            if v2_2 then
+                if (v_5.goTo(v2_2:GetPivot()) == false) then
+                    return false
+                end
+                v_3.equipWeapon()
+                v_3.infiniteDamage(v2_2)
+                v_3.playerClick()
+                v_3.useSkills()
+                return true
+            end
+            return false
+        end
+    end
+end)
+
+-- Module 't' (LVM5 Chunk 50): Race V2 Orb & Baller Boss Unlock Routines
+registerModule("t", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.l()
+    local v_4 = modules.i()
+    local v_5 = modules.n()
+    local v_6 = modules.j()
+    local v_7 = modules.m()
+    local v_8 = modules.r()
+    local v_9 = v_1.localPlayer
+    local v_10 = v_2.island
+    local v_11 = v_7.getPlayerLevel
+    local v_12 = function(arg_1)
+        if (v_9:DistanceFromCharacter(arg_1.summonPos.Position) >= 5) then
+            return (v_4.goTo(arg_1.summonPos) ~= false)
+        end
+        local v_2 = v_10:FindFirstChild(arg_1.island)
+        local v_3 = (v_2 and v_2:FindFirstChild(arg_1.summon))
+        local v_4 = (v_3 and v_3:FindFirstChild("Summon"))
+        local v_5 = (v_4 and v_4:FindFirstChild("SummonPrompt"))
+        if (not v_5) then
+            return false
+        end
+        fireproximityprompt(v_5)
+        return true
+    end
+    return function(arg_1)
+        arg_1.farmRaidBoss = function(p2_1, p2_2, p2_3)
+            local v2_4 = p2_1.spawnBoss[p2_2]
+            if ((not v2_4) or (not v_4.isAlive(v_9.Character))) then
+                return false
+            end
+            local v2_5 = v_4.getEnemy(p2_2)
+            if v2_5 then
+                if ((not v_5:verify(v2_4.quest)) and (v_11() >= v_8.bossLevel[p2_2])) then
+                    v_5:clear(v2_4.quest)
+                    if v_5:take(v2_4.quest, nil, 1) then
+                        return true
+                    end
+                end
+                return v_3.killEnemy(v2_5)
+            end
+            if (v_6:getMaterial(v2_4.material) >= v2_4.amount) then
+                return v_12(v2_4)
+            end
+            if p2_3 then
+                return p2_1:farmMaterial(v2_4.material)
+            end
+            return false
+        end
+        arg_1.killQuest = function(p2_1, p2_2)
+            if ((not v_8.bossLevel[p2_2]) or (v_11() < v_8.bossLevel[p2_2])) then
+                return false
+            end
+            return p2_1:farmRaidBoss(p2_2)
+        end
+    end
+end)
+
+-- Module 'u' (LVM5 Chunk 53): Abilities & Fighting Styles Shop Data
+registerModule("u", function()
+    return { sections = { { name = "Weapons", items = { { name = "Katana", description = "$5.000 Money", remote = { "Weapon_Seller", "Doge" } }, { name = "Hanger", description = "$25.000 Money", remote = { "Weapon_Seller", "Hanger" } }, { name = "Flame Katana", description = "1x Cheems Cola and $50.000", remote = { "Weapon_Seller", "Cheems" } }, { name = "Banana", description = "1x Cat Food and $350.000", remote = { "Weapon_Seller", "Smiling Cat" } }, { name = "Bonk", description = "5x Money Bags and $1.000.000", remote = { "Weapon_Seller", "Meme Man" } }, { name = "Pumpkin", description = "1x Nugget Man and $3.500.000", remote = { "Weapon_Seller", "Gravestone" } }, { name = "Popcat", description = "10.000 Pops Clicker", remote = { "Weapon_Seller", "Ohio Popcat" } } } }, { name = "Ability", items = { { name = "Flash Step", description = "$100.000 Money", remote = { "Ability_Teacher", "Giga Chad" } }, { name = "Instinct", description = "$2.500.000 Money", remote = { "Ability_Teacher", "Nugget Man" } }, { name = "Aura", description = "1x Meme Cube and $10.000.000", remote = { "Ability_Teacher", "Aura Master" } } } }, { name = "Fighting Style", items = { { name = "Combat", description = "$0 Money", remote = { "FightingStyle_Teacher", "Maxwell" } }, { name = "Baller", description = "10x Balls and $10.000.000", remote = { "FightingStyle_Teacher", "Baller" } } } } }, itemPrices = { ["Quest Scroll"] = { Money = 1000000 }, Aura = { Material = { ["Meme Cube"] = 1 }, Money = 10000000 }, Instinct = { Money = 2500000 }, FlashStep = { Money = 100000 }, Katana = { Money = 5000 }, Hanger = { Money = 25000 }, ["Flame Katana"] = { Material = { ["Cheems Cola"] = 1 }, Money = 50000 }, Banana = { Material = { ["Cat Food"] = 1 }, Money = 350000 }, Bonk = { Material = { ["Money Bag"] = 5 }, Money = 1000000 }, Pumpkin = { Material = { ["Nugget Man"] = 1 }, Money = 3500000 }, Baller = { Material = { Ball = 10 }, Money = 10000000 }, Popcat = { Pop = 10000 } }, actionPrices = { rerollRace = { Gem = 250 }, rerollAura = { Gem = 10 } } }
+end)
+
+-- Module 'v' (LVM5 Chunk 54): Weapon Unlocking & Quest Limit Upgrade Routines
+registerModule("v", function()
+    local v_1 = modules.b()
+    local v_2 = modules.o()
+    local v_3 = modules.h()
+    local v_4 = modules.i()
+    local v_5 = modules.n()
+    local v_6 = modules.j()
+    local v_7 = modules.m()
+    local v_8 = modules.u()
+    local v_9 = modules.r()
+    local v_10 = v_1.localPlayer
+    local v_11 = v_1.wait
+    local v_12 = v_2.awakenPos
+    local v_13 = v_7.getData
+    local v_14 = 0
+    local v_15 = {}
+    local v_16 = 0
+    local v_17 = function(arg_1)
+        local v_2 = v_10.Character
+        return ((v_2 and v_2:FindFirstChild(arg_1)) or v_10.Backpack:FindFirstChild(arg_1))
+    end
+    local v_18 = function(arg_1)
+        return ((v_17(arg_1) ~= nil) or (v_6:getMaterial(arg_1) >= 1))
+    end
+    local v_19 = function(arg_1, arg_2)
+        local v_3 = v_10.Character
+        if ((not v_4.isAlive(v_3)) or (os.clock() < (v_15[arg_1] or 0))) then
+            return false
+        end
+        local v_4 = v_17(arg_1)
+        if ((v_4.goTo(v_12) == false) or (v_10.Character ~= v_3)) then
+            return false
+        end
+        v_15[arg_1] = (os.clock() + 3)
+        if v_4 then
+            if (v_4.Parent ~= v_3) then
+                v_3.Humanoid:EquipTool(v_4)
+            end
+            v_3.fire("modules", arg_2, { Action = "Use", Tool = v_4 })
+        else
+            v_3.invoke("updateInventory", "Item", { Action = "Unstore", SelectedItem = arg_1 })
+        end
+        v_11(1)
+        return true
+    end
+    return function(arg_1)
+        arg_1.farmRaceOrb = function(p2_1)
+            if v_5:verify("Dancing Banana Quest") then
+                return p2_1:farmEnemy("Sogga")
+            end
+            v_5:clear("Dancing Banana Quest")
+            return v_5:take("Dancing Banana Quest", v_1.newCFrame(-2620, -80, -2001))
+        end
+        arg_1.evolveRaceV2 = function(p2_1, p2_2)
+            if (p2_2 < v_9.level.raceV2Orb) then
+                return false
+            end
+            local v2_3 = v_13("Race")
+            if (v2_3 ~= "Human") then
+                if v_6:verifyAbility((v2_3 .. "Awaken")) then
+                    return false
+                end
+                if v_18("Awakening Orb") then
+                    return v_19("Awakening Orb", "Awakening_Orb")
+                end
+                return p2_1:farmRaceOrb()
+            end
+            if ((v_13("Gem") >= v_8.actionPrices.rerollRace.Gem) and (os.clock() >= v_16)) then
+                v_16 = (os.clock() + 3)
+                v_3.fire("modules", "Reroll_Race", "Watermelon Man")
+                v_11(1)
+                return true
+            end
+            return false
+        end
+        arg_1.upgradeQuestLimit = function(p2_1)
+            if (not v_4.isAlive(v_10.Character)) then
+                return false
+            end
+            if (v_13("MaxQuest") >= v_9.maxQuest) then
+                return false
+            end
+            if v_18("Quest Scroll") then
+                return v_19("Quest Scroll", "Quest_Scroll")
+            end
+            if ((v_13("Money") < v_8.itemPrices["Quest Scroll"].Money) or (os.clock() < v_14)) then
+                return false
+            end
+            if (v_4.goTo(v_12) == false) then
+                return false
+            end
+            v_14 = (os.clock() + 3)
+            v_3.fire("modules", "Upgrade_Quest", "Popcat")
+            v_11(1)
+            return true
+        end
+    end
+end)
+
+-- Module 'w': Game Settings Reader (Max Level, Ignored Spawns, Tool Types)
+registerModule("w", function()
+    local v_1 = modules.f()
+    local v_2 = v_1.gameSetting.Setting
+    return {
+        maxLevel = v_2.MaxLevel,
+        ignoredSpawns = v_2.IgnoreSpawnPoints,
+        toolTypes = { "Fight", "Power", "Weapon" }
+    }
+end)
+
+-- Module 'x': Abilities & Fighting Styles Alias
+registerModule("x", function()
+    return modules.u()
+end)
+
+-- Module 'y': Gamepass Names & Costs
+registerModule("y", function()
+    local v_1 = modules.f()
+    return {
+        names = { "DoubleGem", "DoubleMoney", "DoubleExp", "Lucky" },
+        prices = v_1.gameSetting.Setting.Gamepasses_Cost,
+        ids = {}
+    }
+end)
+
+-- Module 'z' (LVM5 Chunk 56): Auto Buy Abilities, Weapons, Baller & Race V2
+registerModule("z", function()
+    local v_1 = modules.b()
+    local v_2 = modules.h()
+    local v_3 = modules.x()
+    local v_4 = modules.y()
+    local v_5 = modules.j()
+    local v_6 = modules.m()
+    local v_7 = v_1.wait
+    local v_8 = v_6.getData
+    local v_9 = {}
+    local v_10 = { Instinct = { "Ability_Teacher", "Nugget Man" }, FlashStep = { "Ability_Teacher", "Giga Chad" }, Aura = { "Ability_Teacher", "Aura Master" } }
+    v_9.specialChecks = { Material = function(arg_1)
+        for v_2, v_3 in pairs(arg_1) do
+            if (v_5:getMaterial(v_2) < v_3) then
+                return true
+            end
+        end
+        return false
+    end }
+    v_9.canBuy = function(arg_1, arg_2)
+        local v_3 = v_3.itemPrices[arg_2]
+        if (type(v_3) ~= "table") then
+            return false
+        end
+        for v_4, v_5 in pairs(v_3) do
+            local v_6 = arg_1.specialChecks[v_4]
+            if v_6 then
+                if v_6(v_5) then
+                    return false
+                end
+            else
+                if (v_8(v_4) < v_5) then
+                    return false
+                end
+            end
+        end
+        return true
+    end
+    v_9.getMissingMaterials = function(arg_1, arg_2)
+        local v_3 = {}
+        local v_4 = v_3.itemPrices[arg_2]
+        for v_5, v_6 in pairs(((v_4 and v_4.Material) or {})) do
+            local v_7 = v_5:getMaterial(v_5)
+            if (v_7 < v_6) then
+                v_3[v_5] = (v_6 - v_7)
+            end
+        end
+        return v_3
+    end
+    v_9.buyAllAbilities = function(arg_1)
+        for v_2, v_3 in pairs(v_10) do
+            if ((not v_5:verifyAbility(v_2)) and arg_1:canBuy(v_2)) then
+                v_2.fire("modules", unpack(v_3))
+                v_7(1)
+            end
+        end
+    end
+    v_9.buyMissingWeapon = function(arg_1)
+        local v_2 = v_5:getUnlocked()
+        for v_3, v_4 in ipairs(v_3.sections[1].items) do
+            if ((not v_2[v_4.name]) and arg_1:canBuy(v_4.name)) then
+                v_2.fire("modules", unpack(v_4.remote))
+                v_7(1)
+                return true
+            end
+        end
+        return false
+    end
+    v_9.buyBaller = function(arg_1)
+        if v_5:verifyFightStyle("Baller") then
+            return true
+        end
+        if (not arg_1:canBuy("Baller")) then
+            return false
+        end
+        v_2.fire("modules", "FightingStyle_Teacher", "Baller")
+        v_7(1)
+        return (v_5:verifyFightStyle("Baller") == true)
+    end
+    v_9.buyGamepasses = function(arg_1)
+        for v_2, v_3 in ipairs(v_4.names) do
+            if (not v_5:verifyGamepass(v_3)) then
+                local v_4 = v_4.prices[v_3]
+                local v_5 = v_4.ids[v_3]
+                if ((type(v_4) ~= "number") or ((not v_5) or (v_8("Gem") < v_4))) then
+                    return false
+                end
+                v_2.fire("buyProduct", { Action = "Buy_Gamepass", GamepassId = v_5 })
+                v_7(1)
+                if (not v_5:verifyGamepass(v_3)) then
+                    return false
+                end
+            end
+        end
+        return true
+    end
+    return v_9
+end)
+
+-- Module 'A' (LVM5 Chunk 61): Gamepasses & Fight Style Purchase Routines
+registerModule("A", function()
+    local v_1 = modules.b()
+    local v_2 = modules.w()
+    local v_3 = modules.z()
+    local v_4 = modules.j()
+    local v_5 = modules.m()
+    local v_6 = modules.r()
+    local v_7 = v_1.environment
+    local v_8 = v_5.getPlayerLevel
+    return function(arg_1)
+        arg_1.oneClick = function(p2_1)
+            local v2_2 = (v_7.oneClickSettings or {})
+            local v2_3 = v_4:getUnlocked()
+            local v2_4 = v_8()
+            if (v2_2.awakenV2 and p2_1:evolveRaceV2(v2_4)) then
+                return true
+            end
+            if (v2_2.questLimit and p2_1:unlockQuestLimit()) then
+                return true
+            end
+            if ((not v2_3.Floppa) and p2_1:getFloppaSword()) then
+                return true
+            end
+            if ((v2_4 >= v_6.level.memeBeast) and p2_1:killMemeBeast()) then
+                return true
+            end
+            if (v2_4 >= v_6.level.bossQuest) then
+                for v2_5, v2_6 in ipairs({ "Lord Sus", "Evil Noob", "Giant Pumpkin" }) do
+                    if p2_1:killQuest(v2_6) then
+                        return true
+                    end
+                end
+            end
+            if (v2_2.getGamepasses and ((v2_4 >= v_6.level.gamepasses) and (not v_3:buyGamepasses()))) then
+                if p2_1:farmRaid() then
+                    return true
+                end
+            end
+            if (v2_4 < v_2.maxLevel) then
+                return p2_1:farmLevel()
+            end
+            return p2_1:oneClickEndGame(v2_3, v2_2)
+        end
+        arg_1.oneClickEndGame = function(p2_1, p2_2, p2_3)
+            if p2_1:unlockBaller() then
+                return true
+            end
+            if (((not p2_2.Pumpkin) or (not p2_2["Pumpkin Head"])) and p2_1:farmRaidBoss("Giant Pumpkin", true)) then
+                return true
+            end
+            if (((not p2_2["Yellow Blade"]) or (not p2_2["Noob Friend"])) and p2_1:farmRaidBoss("Evil Noob", true)) then
+                return true
+            end
+            if (((not p2_2["Purple Katana"]) or (not p2_2["Sus Pals"])) and p2_1:farmRaidBoss("Lord Sus", true)) then
+                return true
+            end
+            if (((not p2_2.Card) or (not p2_2["Popcat Pet"])) and p2_1:farmRaid()) then
+                return true
+            end
+            if (((not p2_2.Bonk) or (not p2_2.MrBeast)) and p2_1:farmEnemy("MrBeast")) then
+                return true
+            end
+            if (((not p2_2["Pixel Sword"]) or (not p2_2.Obamid)) and p2_1:farmEnemy("Obamid")) then
+                return true
+            end
+            if (((not p2_2["Giant Banana"]) or (not p2_2.Banana)) and p2_1:farmEnemy("Gorilla King")) then
+                return true
+            end
+            if ((not p2_2["Moai Face"]) and p2_1:farmEnemy("Moai")) then
+                return true
+            end
+            if ((not p2_2["Pink Hammer"]) and p2_1:farmEnemy("Pink Absorber")) then
+                return true
+            end
+            local v2_4 = p2_3.endGame
+            if (v2_4 == "Farm Raid") then
+                return p2_1:farmRaid()
+            end
+            local v2_5 = (((v2_4 == "Farm Evil Noob") and "Evil Noob") or "Lord Sus")
+            if p2_1:farmRaidBoss(v2_5, true) then
+                return true
+            end
+            return p2_1:farmRaid()
+        end
+    end
+end)
+
+-- Module 'B' (LVM5 Chunk 72): One-Click Progression & End-Game Automation
+registerModule("B", function()
+    local v_1 = modules.x()
+    local v_2 = modules.z()
+    local v_3 = modules.j()
+    local v_4 = modules.m()
+    local v_5 = modules.r()
+    local v_6 = v_4.getData
+    local v_7 = v_4.getPlayerLevel
+    return function(arg_1)
+        arg_1.unlockBaller = function(p2_1)
+            if v_3:verifyFightStyle("Baller") then
+                return false
+            end
+            local v2_2 = v_1.itemPrices.Baller
+            local v2_3 = next(v_2:getMissingMaterials("Baller"))
+            if v2_3 then
+                return p2_1:farmMaterial(v2_3)
+            end
+            if (v_6("Money") >= v2_2.Money) then
+                return v_2:buyBaller()
+            end
+            return false
+        end
+        arg_1.unlockWeapons = function(p2_1)
+            local v2_2 = v_3:getUnlocked()
+            for v2_3, v2_4 in ipairs(v_1.sections[1].items) do
+                if (not v2_2[v2_4.name]) then
+                    if v_2:canBuy(v2_4.name) then
+                        return v_2:buyMissingWeapon()
+                    end
+                    local v2_5 = v_1.itemPrices[v2_4.name]
+                    local v2_6 = v_2:getMissingMaterials(v2_4.name)
+                    if next(v2_6) then
+                        local v2_7 = nil
+                        for v2_8 in pairs(v2_6) do
+                            if p2_1.materials[v2_8] then
+                                v2_7 = v2_8
+                                break
+                            end
+                        end
+                        if (v2_7 and p2_1:farmMaterial(v2_7)) then
+                            return true
+                        end
+                    else
+                        if (v_6("Money") < (v2_5.Money or 0)) then
+                            return false
+                        end
+                    end
+                end
+            end
+            return false
+        end
+        arg_1.unlockQuestLimit = function(p2_1)
+            if (v_6("MaxQuest") >= v_5.maxQuest) then
+                return false
+            end
+            return p2_1:upgradeQuestLimit()
+        end
+        arg_1.unlockGamepasses = function(p2_1)
+            if (v_7() < v_5.level.gamepasses) then
+                return false
+            end
+            if v_2:buyGamepasses() then
+                return false
+            end
+            return p2_1:farmRaid()
+        end
+    end
+end)
+
+-- Module 'C': Combined Farming Controller Aggregator
+registerModule("C", function()
+    local v_1 = modules.o()
+    local v_2 = {
+        spawnBoss = v_1.spawnBoss,
+        materials = v_1.materials
+    }
+    modules.p()(v_2)
+    modules.s()(v_2)
+    modules.t()(v_2)
+    modules.v()(v_2)
+    modules.A()(v_2)
+    modules.B()(v_2)
+    return v_2
+end)
+
+-- Module 'D': Priority Task: One Click
+registerModule("D", function()
+    local v_1 = modules.C()
+    return {
+        flag = "oneClick",
+        run = function()
+            return v_1:oneClick()
+        end
+    }
+end)
+
+-- Module 'E': Priority Task: Floppa Sword
+registerModule("E", function()
+    local v_1 = modules.C()
+    local v_2 = modules.j()
+    return {
+        flag = "floppaSword",
+        run = function()
+            if not v_2:verifySword("Floppa") then
+                return v_1:getFloppaSword()
+            end
+        end
+    }
+end)
+
+-- Module 'F': Priority Task: Meme Beast
+registerModule("F", function()
+    local v_1 = modules.C()
+    return {
+        flag = "memeBeast",
+        run = function()
+            return v_1:killMemeBeast()
+        end
+    }
+end)
+
+-- Module 'G': Priority Task: Lord Sus Raid Boss
+registerModule("G", function()
+    local v_1 = modules.C()
+    return {
+        flag = "lordSus",
+        run = function()
+            return v_1:farmRaidBoss("Lord Sus", true)
+        end
+    }
+end)
+
+-- Module 'H': Priority Task: Evil Noob Raid Boss
+registerModule("H", function()
+    local v_1 = modules.C()
+    return {
+        flag = "evilNoob",
+        run = function()
+            return v_1:farmRaidBoss("Evil Noob", true)
+        end
+    }
+end)
+
+-- Module 'I': Priority Task: Giant Pumpkin Raid Boss
+registerModule("I", function()
+    local v_1 = modules.C()
+    return {
+        flag = "giantPumpkin",
+        run = function()
+            return v_1:farmRaidBoss("Giant Pumpkin", true)
+        end
+    }
+end)
+
+-- Module 'J': Priority Task: Race V2 Orb
+registerModule("J", function()
+    local v_1 = modules.C()
+    local v_2 = modules.m()
+    local v_3 = modules.r()
+    local v_4 = v_2.getPlayerLevel
+    return {
+        flag = "raceV2Orb",
+        run = function()
+            if v_4() >= v_3.level.raceV2Orb then
+                return v_1:farmRaceOrb()
+            end
+        end
+    }
+end)
+
+-- Module 'K': Priority Task: Unlock Baller
+registerModule("K", function()
+    local v_1 = modules.C()
+    return {
+        flag = "unlockBaller",
+        run = function()
+            return v_1:unlockBaller()
+        end
+    }
+end)
+
+-- Module 'L': Priority Task: Unlock Weapons
+registerModule("L", function()
+    local v_1 = modules.C()
+    return {
+        flag = "unlockWeapons",
+        run = function()
+            return v_1:unlockWeapons()
+        end
+    }
+end)
+
+-- Module 'M': Priority Task: Unlock Quest Limit
+registerModule("M", function()
+    local v_1 = modules.C()
+    return {
+        flag = "unlockQuestLimit",
+        run = function()
+            return v_1:unlockQuestLimit()
+        end
+    }
+end)
+
+-- Module 'N': Priority Task: Unlock Gamepasses
+registerModule("N", function()
+    local v_1 = modules.C()
+    return {
+        flag = "unlockGamepasses",
+        run = function()
+            return v_1:unlockGamepasses()
+        end
+    }
+end)
+
+-- Module 'O': Priority Task: Level Farm
+registerModule("O", function()
+    local v_1 = modules.C()
+    return {
+        flag = "levelFarm",
+        run = function()
+            return v_1:farmLevel()
+        end
+    }
+end)
+
+-- Module 'P': Priority Task: Raid Farm
+registerModule("P", function()
+    local v_1 = modules.C()
+    local v_2 = modules.m()
+    local v_3 = modules.r()
+    local v_4 = v_2.getPlayerLevel
+    return {
+        flag = "raidFarm",
+        run = function()
+            if v_4() >= v_3.level.raid then
+                return v_1:farmRaid()
+            end
+        end
+    }
+end)
+
+-- Module 'Q': Priority Task: Farm Selected Enemy
+registerModule("Q", function()
+    local v_1 = modules.b()
+    local v_2 = modules.C()
+    local v_3 = v_1.environment
+    return {
+        flag = "farmSelectedEnemy",
+        run = function()
+            return v_2:farmEnemy(v_3.selectedEnemy, v_3.takeSelectedQuest)
+        end
+    }
+end)
+
+-- Module 'R': Priority Task: Nearest Enemy Farm
+registerModule("R", function()
+    local v_1 = modules.l()
+    local v_2 = modules.i()
+    return {
+        flag = "nearestFarm",
+        run = function()
+            return v_1.killEnemy(v_2.getEnemy())
+        end
+    }
+end)
+
+-- Module 'S': Ordered Farming Priority List
+registerModule("S", function()
+    return {
+        modules.D(),
+        modules.E(),
+        modules.F(),
+        modules.G(),
+        modules.H(),
+        modules.I(),
+        modules.J(),
+        modules.K(),
+        modules.L(),
+        modules.M(),
+        modules.N(),
+        modules.O(),
+        modules.P(),
+        modules.Q(),
+        modules.R()
+    }
+end)
+
+-- Module 'T' (LVM5 Chunk 82): Anti-AFK & No-Stun Character Hooks
+registerModule("T", function()
+    local v_1 = modules.b()
+    local v_2 = modules.e()
+    return function()
+        if v_1.environment.loadedAntiAfk then
+            return
+        end
+        v_1.environment.loadedAntiAfk = true
+        v_1.spawn(function()
+            while v_1.wait(600) do
+                if v_2.antiAfk then
+                    v_1.virtualUser:CaptureController()
+                    v_1.virtualUser:ClickButton2(Vector2.new())
+                end
+            end
+        end)
+    end
+end)
+
+-- Module 'U' (LVM5 Chunk 85): Remote Hook (AimBot) & Task Priority Loop
+registerModule("U", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.w()
+    local v_4 = modules.y()
+    local v_5 = "local environment = ...\n\nlocal oldNamecall\noldNamecall = hookmetamethod(game, \"__namecall\", function(self, ...)\n\tif getnamecallmethod():lower() == \"fireserver\" and self.Name == \"Server_Skills\" then\n\t\tlocal latestAttack = environment.latestAttack\n\t\tif latestAttack and latestAttack.aimBot then\n\t\t\treturn latestAttack.aimBot(oldNamecall, self, ...)\n\t\tend\n\tend\n\treturn oldNamecall(self, ...)\nend)\n"
+    local v_6 = v_1.localPlayer
+    local v_7 = v_1.runService
+    local v_8 = v_1.environment
+    local v_9 = v_1.spawn
+    return function()
+        v_9(function()
+            for v2_1, v2_2 in ipairs(require(v_2.gameModules.Gamepass_Assets)) do
+                v_4.ids[v2_2.Asset_Name] = v2_2.GamepassId
+            end
+        end)
+        v_9(function()
+            if v_8.loadedAnonymousName then
+                return
+            end
+            v_8.loadedAnonymousName = true
+            local v2_1 = v_6.PlayerGui.MainGui.PlayerName
+            local v2_2 = function()
+                local v3_1 = v_2.playerLevel.Value
+                local v3_2 = (v3_1 >= v_3.maxLevel)
+                v2_1.Text = ("%s • Lv. %i%s"):format("Anonymous", v3_1, ((v3_2 and " (Max)") or ""))
+            end
+            v2_1:GetPropertyChangedSignal("Text"):Connect(v2_2)
+            v2_2()
+        end)
+        v_9(function()
+            if v_8.loadedAimBot then
+                return
+            end
+            xpcall(function()
+                local v3_1, v3_2 = loadstring(v_5, "=AimBotHook")
+                assert(v3_1, v3_2)
+                v3_1(v_8)
+                v_8.loadedAimBot = true
+            end, function(...)
+                print("!ERROR! Erro ao carregar o hook do AimBot: ", ...)
+            end)
+        end)
+        v_9(function()
+            if v_8.loadedNearestPlayer then
+                return
+            end
+            v_8.loadedNearestPlayer = true
+            v_7.Stepped:Connect(function()
+                local v3_1 = 1000
+                local v3_2 = false
+                if v_8.aimBotPlayers then
+                    for v3_3, v3_4 in ipairs(v_2.characters:GetChildren()) do
+                        local v3_5 = v3_4.PrimaryPart
+                        if ((v3_4 ~= v_6.Character) and v3_5) then
+                            local v3_6 = v_6:DistanceFromCharacter(v3_5.Position)
+                            if (v3_6 < v3_1) then
+                                v3_1 = v3_6
+                                v3_2 = v3_5
+                            end
+                        end
+                    end
+                end
+                v_8.nearestPlayer = v3_2
+            end)
+        end)
+        v_9(function()
+            if v_8.loadedNoStun then
+                return
+            end
+            v_8.loadedNoStun = true
+            local v2_1 = function(p3_1)
+                local v3_2 = p3_1:WaitForChild("Stun")
+                v3_2:GetPropertyChangedSignal("Value"):Connect(function()
+                    if v_8.noStun then
+                        v3_2.Value = 0
+                    end
+                end)
+            end
+            v_6.CharacterAdded:Connect(v2_1)
+            if v_6.Character then
+                v2_1(v_6.Character)
+            end
+        end)
+    end
+end)
+
+-- Module 'V' (LVM5 Chunk 89): Localization / Language Code Resolver
+registerModule("V", function()
+    local v_1 = modules.c()
+    return { window = { title = "redz Hub : Meme Sea", subtitle = "by redz9999", scriptFolder = "redzHub-MemeSea.json" }, minimizeLogo = "rbxassetid://15298567397", discord = { title = "redz Hub | Community", description = "Join our discord community to receive information about the next update", logo = "rbxassetid://17382040552", invite = v_1 }, tabs = { discord = { title = "Discord", icon = "Info" }, mainFarm = { title = "Farm", icon = "Home" }, items = { title = "Items", icon = "Swords" }, powers = { title = "Powers", icon = "Apple" }, stats = { title = "Stats", icon = "Signal" }, teleport = { title = "Teleport", icon = "Locate" }, shop = { title = "Shop", icon = "ShoppingCart" }, pvp = { title = "PvP", icon = "User" }, oneClick = { title = "One-Click", icon = "mouse-pointer-click" }, misc = { title = "Misc", icon = "Settings" } } }
+end)
+
+-- Module 'W' (LVM5 Chunk 90): Translations: English (en)
+registerModule("W", function()
+    return { Discord = "Discord", Farm = "Farm", Items = "Items", Powers = "Powers", Stats = "Stats", Teleport = "Teleport", Shop = "Shop", PvP = "PvP", ["One-Click"] = "One-Click", Misc = "Misc", ["Farm Tool"] = "Farm Tool", ["UI Scale"] = "UI Scale", Small = "Small", Medium = "Medium", Large = "Large", Fight = "Fight", Power = "Power", Weapon = "Weapon", ["Auto Farm Level"] = "Auto Farm Level", ["MaxLevel: %i"] = "MaxLevel: %i", ["Auto Farm Nearest"] = "Auto Farm Nearest", Enemies = "Enemies", ["Select Enemie"] = "Select Enemie", ["Auto Farm Selected"] = "Auto Farm Selected", ["Take Quest [ Enemie Selected ]"] = "Take Quest [ Enemie Selected ]", ["Sea Event"] = "Sea Event", ["Auto Meme Beast [ Spawns every 30 Minutes ]"] = "Auto Meme Beast [ Spawns every 30 Minutes ]", ["Drops: Portal ( <25% ), Meme Cube ( <50% )"] = "Drops: Portal ( <25% ), Meme Cube ( <50% )", Raid = "Raid", ["Auto Farm Raid"] = "Auto Farm Raid", ["Req: Level %i"] = "Req: Level %i", Skills = "Skills", ["Select Skills"] = "Select Skills", ["Auto Use Skills"] = "Auto Use Skills", Bosses = "Bosses", ["Auto Giant Pumpkin"] = "Auto Giant Pumpkin", ["Drops: Pumpkin Head ( <10% ), Nugget Man ( <25% )"] = "Drops: Pumpkin Head ( <10% ), Nugget Man ( <25% )", ["Auto Evil Noob"] = "Auto Evil Noob", ["Drops: Yellow Blade ( <5% ), Noob Friend ( <10% )"] = "Drops: Yellow Blade ( <5% ), Noob Friend ( <10% )", ["Auto Lord Sus"] = "Auto Lord Sus", ["Drops: Purple Katana ( <5% ), Sus Pals ( <10% )"] = "Drops: Purple Katana ( <5% ), Sus Pals ( <10% )", Race = "Race", ["Auto Awakening Orb"] = "Auto Awakening Orb", Floppa = "Floppa", ["Auto Floppa [ Exclusive Weapon ]"] = "Auto Floppa [ Exclusive Weapon ]", Popcat = "Popcat", ["Clicks per Second"] = "Clicks per Second", ["Auto Popcat"] = "Auto Popcat", Unlock = "Unlock", ["Auto Baller"] = "Auto Baller", ["Farms 10 balls and buys Baller"] = "Farms 10 balls and buys Baller", ["Auto Weapons"] = "Auto Weapons", ["Farms the materials and unlocks the Weapons section"] = "Farms the materials and unlocks the Weapons section", ["Auto Quest Limit"] = "Auto Quest Limit", ["Uses the Quest Scroll (or buys it)"] = "Uses the Quest Scroll (or buys it)", ["Auto Gamepasses"] = "Auto Gamepasses", ["From level %i: farms gems and buys all gamepasses"] = "From level %i: farms gems and buys all gamepasses", Drops = "Drops", ["Collect all drops"] = "Collect all drops", ["Drop all powers"] = "Drop all powers", Store = "Store", ["Auto Store Powers"] = "Auto Store Powers", Unstore = "Unstore", ["Select Power"] = "Select Power", ["Unstore Amount"] = "Unstore Amount", ["Number: 1-99"] = "Number: 1-99", ["Unstore Power"] = "Unstore Power", ["Power Gacha"] = "Power Gacha", ["Gacha Type"] = "Gacha Type", Money = "Money", Gem = "Gem", ["Gacha Amount"] = "Gacha Amount", ["Roll Powers"] = "Roll Powers", ["Auto Reroll Power"] = "Auto Reroll Power", ["Aura Color"] = "Aura Color", ["Auto Reroll Aura"] = "Auto Reroll Aura", Others = "Others", ["Remove Gacha Animation"] = "Remove Gacha Animation", ["Destroy stored Powers"] = "Destroy stored Powers", ["Points Amount"] = "Points Amount", ["Auto Stats"] = "Auto Stats", ["Select Stats"] = "Select Stats", Health = "Health", Melee = "Melee", Locations = "Locations", Islands = "Islands", Quests = "Quests", ["Bounty/Fame"] = "Bounty/Fame", ["Teleport to random player"] = "Teleport to random player", AimBot = "AimBot", ["AimBot Players"] = "AimBot Players", ["AimBot Monsters"] = "AimBot Monsters", Esp = "Esp", ["Esp Players"] = "Esp Players", ["Esp Islands"] = "Esp Islands", ["Safe Zone"] = "Safe Zone", ["PvP On"] = "PvP On", ["PvP Off"] = "PvP Off", ["Auto Buy"] = "Auto Buy", ["Auto Buy Abilities"] = "Auto Buy Abilities", ["Aura, Instinct & Flash Step"] = "Aura, Instinct & Flash Step", Weapons = "Weapons", Ability = "Ability", ["Fighting Style"] = "Fighting Style", ["Buy %s"] = "Buy %s", ["Start One Click [ BETA ]"] = "Start One Click [ BETA ]", Settings = "Settings", ["Buy all gamepass"] = "Buy all gamepass", ["farm gems and buy all gamepass"] = "farm gems and buy all gamepass", ["Awaken Race V2"] = "Awaken Race V2", ["get race V2 if you don't have"] = "get race V2 if you don't have", ["Upgrade quest limit"] = "Upgrade quest limit", ["buy quest scroll and use"] = "buy quest scroll and use", ["Get all aura Colors"] = "Get all aura Colors", ["get all aura colors after purchasing the aura"] = "get all aura colors after purchasing the aura", ["End-Game"] = "End-Game", ["Farm Lord Sus"] = "Farm Lord Sus", ["Farm Evil Noob"] = "Farm Evil Noob", ["Farm Raid"] = "Farm Raid", ["Redeem All Codes"] = "Redeem All Codes", ["Job id"] = "Job id", ["Input Job Id"] = "Input Job Id", ["Join From Clipboard"] = "Join From Clipboard", ["Farm Distance"] = "Farm Distance", ["Auto Aura"] = "Auto Aura", ["Auto Attack"] = "Auto Attack", ["Bring Mobs"] = "Bring Mobs", ["Anti AFK"] = "Anti AFK", ["Auto Equip"] = "Auto Equip", ["Sword & accessory"] = "Sword & accessory", Team = "Team", ["Join Cheems Team"] = "Join Cheems Team", ["Join Floppa Team"] = "Join Floppa Team", ["Remove Notifications"] = "Remove Notifications", ["No Stun"] = "No Stun", ["Inf sky jump"] = "Inf sky jump", Language = "Language", ["Language changes apply on next run."] = "Language changes apply on next run.", auto = "auto", ["Infinite Damage"] = "Infinite Damage", ["Works with: Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power."] = "Works with: Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power." }
+end)
+
+-- Module 'X' (LVM5 Chunk 91): Translations: Portuguese (pt)
+registerModule("X", function()
+    return { Discord = "Discord", Farm = "Farm", Items = "Itens", Powers = "Poderes", Stats = "Atributos", Teleport = "Teleporte", Shop = "Loja", PvP = "PvP", ["One-Click"] = "Um clique", Misc = "Diversos", ["Farm Tool"] = "Ferramenta de farm", ["UI Scale"] = "Escala da interface", Small = "Pequena", Medium = "Média", Large = "Grande", Fight = "Luta", Power = "Poder", Weapon = "Arma", ["Auto Farm Level"] = "Farm automático de nível", ["MaxLevel: %i"] = "Nível máximo: %i", ["Auto Farm Nearest"] = "Farm do inimigo mais próximo", Enemies = "Inimigos", ["Select Enemie"] = "Selecionar inimigo", ["Auto Farm Selected"] = "Farm do inimigo selecionado", ["Take Quest [ Enemie Selected ]"] = "Aceitar missão [inimigo selecionado]", ["Sea Event"] = "Evento do mar", ["Auto Meme Beast [ Spawns every 30 Minutes ]"] = "Meme Beast automático [aparece a cada 30 minutos]", ["Drops: Portal ( <25% ), Meme Cube ( <50% )"] = "Drops: Portal (<25%), Meme Cube (<50%)", Raid = "Raid", ["Auto Farm Raid"] = "Farm automático de raid", ["Req: Level %i"] = "Requer nível %i", Skills = "Habilidades", ["Select Skills"] = "Selecionar habilidades", ["Auto Use Skills"] = "Usar habilidades automaticamente", Bosses = "Chefes", ["Auto Giant Pumpkin"] = "Giant Pumpkin automático", ["Drops: Pumpkin Head ( <10% ), Nugget Man ( <25% )"] = "Drops: Pumpkin Head (<10%), Nugget Man (<25%)", ["Auto Evil Noob"] = "Evil Noob automático", ["Drops: Yellow Blade ( <5% ), Noob Friend ( <10% )"] = "Drops: Yellow Blade (<5%), Noob Friend (<10%)", ["Auto Lord Sus"] = "Lord Sus automático", ["Drops: Purple Katana ( <5% ), Sus Pals ( <10% )"] = "Drops: Purple Katana (<5%), Sus Pals (<10%)", Race = "Raça", ["Auto Awakening Orb"] = "Orbe do despertar automático", Floppa = "Floppa", ["Auto Floppa [ Exclusive Weapon ]"] = "Floppa automático [arma exclusiva]", Popcat = "Popcat", ["Clicks per Second"] = "Cliques por segundo", ["Auto Popcat"] = "Popcat automático", Unlock = "Desbloquear", ["Auto Baller"] = "Baller automático", ["Farms 10 balls and buys Baller"] = "Coleta 10 bolas e compra Baller", ["Auto Weapons"] = "Armas automáticas", ["Farms the materials and unlocks the Weapons section"] = "Coleta materiais e desbloqueia as armas", ["Auto Quest Limit"] = "Limite de missões automático", ["Uses the Quest Scroll (or buys it)"] = "Usa o Quest Scroll (ou compra)", ["Auto Gamepasses"] = "Gamepasses automáticos", ["From level %i: farms gems and buys all gamepasses"] = "A partir do nível %i: coleta gemas e compra todos os gamepasses", Drops = "Drops", ["Collect all drops"] = "Coletar todos os drops", ["Drop all powers"] = "Soltar todos os poderes", Store = "Armazenar", ["Auto Store Powers"] = "Armazenar poderes automaticamente", Unstore = "Retirar do armazenamento", ["Select Power"] = "Selecionar poder", ["Unstore Amount"] = "Quantidade para retirar", ["Number: 1-99"] = "Número: 1-99", ["Unstore Power"] = "Retirar poder", ["Power Gacha"] = "Gacha de poderes", ["Gacha Type"] = "Tipo de gacha", Money = "Dinheiro", Gem = "Gemas", ["Gacha Amount"] = "Quantidade de gachas", ["Roll Powers"] = "Girar poderes", ["Auto Reroll Power"] = "Girar poderes automaticamente", ["Aura Color"] = "Cor da aura", ["Auto Reroll Aura"] = "Girar aura automaticamente", Others = "Outros", ["Remove Gacha Animation"] = "Remover animação do gacha", ["Destroy stored Powers"] = "Destruir poderes com estoque cheio", ["Points Amount"] = "Quantidade de pontos", ["Auto Stats"] = "Atributos automáticos", ["Select Stats"] = "Selecionar atributos", Health = "Vida", Melee = "Corpo a corpo", Locations = "Locais", Islands = "Ilhas", Quests = "Missões", ["Bounty/Fame"] = "Recompensa/Fama", ["Teleport to random player"] = "Teleportar para um jogador aleatório", AimBot = "AimBot", ["AimBot Players"] = "AimBot em jogadores", ["AimBot Monsters"] = "AimBot em monstros", Esp = "ESP", ["Esp Players"] = "ESP de jogadores", ["Esp Islands"] = "ESP de ilhas", ["Safe Zone"] = "Zona segura", ["PvP On"] = "PvP ativo", ["PvP Off"] = "PvP desativado", ["Auto Buy"] = "Compra automática", ["Auto Buy Abilities"] = "Comprar habilidades automaticamente", ["Aura, Instinct & Flash Step"] = "Aura, Instinct e Flash Step", Weapons = "Armas", Ability = "Habilidades", ["Fighting Style"] = "Estilo de luta", ["Buy %s"] = "Comprar %s", ["Start One Click [ BETA ]"] = "Iniciar um clique [BETA]", Settings = "Configurações", ["Buy all gamepass"] = "Comprar todos os gamepasses", ["farm gems and buy all gamepass"] = "Coleta gemas e compra todos os gamepasses", ["Awaken Race V2"] = "Despertar raça V2", ["get race V2 if you don't have"] = "Obtém a raça V2 se ainda não tiver", ["Upgrade quest limit"] = "Aumentar limite de missões", ["buy quest scroll and use"] = "Compra e usa o Quest Scroll", ["Get all aura Colors"] = "Obter todas as cores de aura", ["get all aura colors after purchasing the aura"] = "Obtém todas as cores após comprar a aura", ["End-Game"] = "Objetivo final", ["Farm Lord Sus"] = "Farm de Lord Sus", ["Farm Evil Noob"] = "Farm de Evil Noob", ["Farm Raid"] = "Farm de raid", ["Redeem All Codes"] = "Resgatar todos os códigos", ["Job id"] = "ID do servidor", ["Input Job Id"] = "Inserir ID do servidor", ["Join From Clipboard"] = "Entrar usando área de transferência", ["Farm Distance"] = "Distância de farm", ["Auto Aura"] = "Aura automática", ["Auto Attack"] = "Ataque automático", ["Bring Mobs"] = "Agrupar inimigos", ["Anti AFK"] = "Anti AFK", ["Auto Equip"] = "Equipar automaticamente", ["Sword & accessory"] = "Espada e acessório", Team = "Time", ["Join Cheems Team"] = "Entrar no time Cheems", ["Join Floppa Team"] = "Entrar no time Floppa", ["Remove Notifications"] = "Remover notificações", ["No Stun"] = "Sem atordoamento", ["Inf sky jump"] = "Saltos aéreos infinitos", Language = "Idioma", ["Language changes apply on next run."] = "A mudança de idioma vale na próxima execução.", auto = "Automático", ["Infinite Damage"] = "Dano infinito", ["Works with: Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power."] = "Funciona com: Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power." }
+end)
+
+-- Module 'Y' (LVM5 Chunk 92): Translations: Spanish (es)
+registerModule("Y", function()
+    return { Discord = "Discord", Farm = "Farmeo", Items = "Objetos", Powers = "Poderes", Stats = "Estadísticas", Teleport = "Teletransporte", Shop = "Tienda", PvP = "PvP", ["One-Click"] = "Un clic", Misc = "Varios", ["Farm Tool"] = "Herramienta de farmeo", ["UI Scale"] = "Escala de interfaz", Small = "Pequeña", Medium = "Mediana", Large = "Grande", Fight = "Lucha", Power = "Poder", Weapon = "Arma", ["Auto Farm Level"] = "Subir nivel automáticamente", ["MaxLevel: %i"] = "Nivel máximo: %i", ["Auto Farm Nearest"] = "Farmear enemigo más cercano", Enemies = "Enemigos", ["Select Enemie"] = "Seleccionar enemigo", ["Auto Farm Selected"] = "Farmear enemigo seleccionado", ["Take Quest [ Enemie Selected ]"] = "Aceptar misión [enemigo seleccionado]", ["Sea Event"] = "Evento del mar", ["Auto Meme Beast [ Spawns every 30 Minutes ]"] = "Meme Beast automático [aparece cada 30 minutos]", ["Drops: Portal ( <25% ), Meme Cube ( <50% )"] = "Botín: Portal (<25%), Meme Cube (<50%)", Raid = "Incursión", ["Auto Farm Raid"] = "Farmear incursiones", ["Req: Level %i"] = "Requiere nivel %i", Skills = "Habilidades", ["Select Skills"] = "Seleccionar habilidades", ["Auto Use Skills"] = "Usar habilidades automáticamente", Bosses = "Jefes", ["Auto Giant Pumpkin"] = "Giant Pumpkin automático", ["Drops: Pumpkin Head ( <10% ), Nugget Man ( <25% )"] = "Botín: Pumpkin Head (<10%), Nugget Man (<25%)", ["Auto Evil Noob"] = "Evil Noob automático", ["Drops: Yellow Blade ( <5% ), Noob Friend ( <10% )"] = "Botín: Yellow Blade (<5%), Noob Friend (<10%)", ["Auto Lord Sus"] = "Lord Sus automático", ["Drops: Purple Katana ( <5% ), Sus Pals ( <10% )"] = "Botín: Purple Katana (<5%), Sus Pals (<10%)", Race = "Raza", ["Auto Awakening Orb"] = "Orbe de despertar automático", Floppa = "Floppa", ["Auto Floppa [ Exclusive Weapon ]"] = "Floppa automático [arma exclusiva]", Popcat = "Popcat", ["Clicks per Second"] = "Clics por segundo", ["Auto Popcat"] = "Popcat automático", Unlock = "Desbloquear", ["Auto Baller"] = "Baller automático", ["Farms 10 balls and buys Baller"] = "Consigue 10 bolas y compra Baller", ["Auto Weapons"] = "Armas automáticas", ["Farms the materials and unlocks the Weapons section"] = "Consigue materiales y desbloquea las armas", ["Auto Quest Limit"] = "Límite de misiones automático", ["Uses the Quest Scroll (or buys it)"] = "Usa el Quest Scroll (o lo compra)", ["Auto Gamepasses"] = "Pases automáticos", ["From level %i: farms gems and buys all gamepasses"] = "Desde el nivel %i: consigue gemas y compra todos los pases", Drops = "Botín", ["Collect all drops"] = "Recoger todo el botín", ["Drop all powers"] = "Soltar todos los poderes", Store = "Guardar", ["Auto Store Powers"] = "Guardar poderes automáticamente", Unstore = "Retirar del almacén", ["Select Power"] = "Seleccionar poder", ["Unstore Amount"] = "Cantidad a retirar", ["Number: 1-99"] = "Número: 1-99", ["Unstore Power"] = "Retirar poder", ["Power Gacha"] = "Gacha de poderes", ["Gacha Type"] = "Tipo de gacha", Money = "Dinero", Gem = "Gemas", ["Gacha Amount"] = "Cantidad de gachas", ["Roll Powers"] = "Girar poderes", ["Auto Reroll Power"] = "Girar poderes automáticamente", ["Aura Color"] = "Color del aura", ["Auto Reroll Aura"] = "Girar aura automáticamente", Others = "Otros", ["Remove Gacha Animation"] = "Quitar animación del gacha", ["Destroy stored Powers"] = "Destruir poderes con almacén lleno", ["Points Amount"] = "Cantidad de puntos", ["Auto Stats"] = "Estadísticas automáticas", ["Select Stats"] = "Seleccionar estadísticas", Health = "Salud", Melee = "Cuerpo a cuerpo", Locations = "Lugares", Islands = "Islas", Quests = "Misiones", ["Bounty/Fame"] = "Recompensa/Fama", ["Teleport to random player"] = "Teletransportarse a un jugador aleatorio", AimBot = "AimBot", ["AimBot Players"] = "AimBot para jugadores", ["AimBot Monsters"] = "AimBot para monstruos", Esp = "ESP", ["Esp Players"] = "ESP de jugadores", ["Esp Islands"] = "ESP de islas", ["Safe Zone"] = "Zona segura", ["PvP On"] = "PvP activo", ["PvP Off"] = "PvP desactivado", ["Auto Buy"] = "Compra automática", ["Auto Buy Abilities"] = "Comprar habilidades automáticamente", ["Aura, Instinct & Flash Step"] = "Aura, Instinct y Flash Step", Weapons = "Armas", Ability = "Habilidades", ["Fighting Style"] = "Estilo de lucha", ["Buy %s"] = "Comprar %s", ["Start One Click [ BETA ]"] = "Iniciar un clic [BETA]", Settings = "Ajustes", ["Buy all gamepass"] = "Comprar todos los pases", ["farm gems and buy all gamepass"] = "Consigue gemas y compra todos los pases", ["Awaken Race V2"] = "Despertar raza V2", ["get race V2 if you don't have"] = "Obtiene la raza V2 si aún no la tienes", ["Upgrade quest limit"] = "Aumentar límite de misiones", ["buy quest scroll and use"] = "Compra y usa el Quest Scroll", ["Get all aura Colors"] = "Obtener todos los colores de aura", ["get all aura colors after purchasing the aura"] = "Obtiene todos los colores tras comprar el aura", ["End-Game"] = "Objetivo final", ["Farm Lord Sus"] = "Farmear Lord Sus", ["Farm Evil Noob"] = "Farmear Evil Noob", ["Farm Raid"] = "Farmear incursiones", ["Redeem All Codes"] = "Canjear todos los códigos", ["Job id"] = "ID del servidor", ["Input Job Id"] = "Introducir ID del servidor", ["Join From Clipboard"] = "Entrar desde el portapapeles", ["Farm Distance"] = "Distancia de farmeo", ["Auto Aura"] = "Aura automática", ["Auto Attack"] = "Ataque automático", ["Bring Mobs"] = "Agrupar enemigos", ["Anti AFK"] = "Anti AFK", ["Auto Equip"] = "Equipar automáticamente", ["Sword & accessory"] = "Espada y accesorio", Team = "Equipo", ["Join Cheems Team"] = "Unirse al equipo Cheems", ["Join Floppa Team"] = "Unirse al equipo Floppa", ["Remove Notifications"] = "Quitar notificaciones", ["No Stun"] = "Sin aturdimiento", ["Inf sky jump"] = "Saltos aéreos infinitos", Language = "Idioma", ["Language changes apply on next run."] = "El cambio de idioma se aplica en la próxima ejecución.", auto = "Automático", ["Infinite Damage"] = "Daño infinito", ["Works with: Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power."] = "Funciona con: Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power." }
+end)
+
+-- Module 'Z' (LVM5 Chunk 93): Translations: French (fr)
+registerModule("Z", function()
+    return { Discord = "Discord", Farm = "Farm", Items = "Objets", Powers = "Pouvoirs", Stats = "Statistiques", Teleport = "Téléportation", Shop = "Boutique", PvP = "JcJ", ["One-Click"] = "Un clic", Misc = "Divers", ["Farm Tool"] = "Outil de farm", ["UI Scale"] = "Échelle de l'interface", Small = "Petite", Medium = "Moyenne", Large = "Grande", Fight = "Combat", Power = "Pouvoir", Weapon = "Arme", ["Auto Farm Level"] = "Monter de niveau automatiquement", ["MaxLevel: %i"] = "Niveau maximum : %i", ["Auto Farm Nearest"] = "Farmer l'ennemi le plus proche", Enemies = "Ennemis", ["Select Enemie"] = "Choisir un ennemi", ["Auto Farm Selected"] = "Farmer l'ennemi choisi", ["Take Quest [ Enemie Selected ]"] = "Accepter la quête [ennemi choisi]", ["Sea Event"] = "Événement marin", ["Auto Meme Beast [ Spawns every 30 Minutes ]"] = "Meme Beast automatique [toutes les 30 minutes]", ["Drops: Portal ( <25% ), Meme Cube ( <50% )"] = "Butin : Portal (<25 %), Meme Cube (<50 %)", Raid = "Raid", ["Auto Farm Raid"] = "Farmer les raids", ["Req: Level %i"] = "Niveau requis : %i", Skills = "Compétences", ["Select Skills"] = "Choisir les compétences", ["Auto Use Skills"] = "Utiliser les compétences automatiquement", Bosses = "Boss", ["Auto Giant Pumpkin"] = "Giant Pumpkin automatique", ["Drops: Pumpkin Head ( <10% ), Nugget Man ( <25% )"] = "Butin : Pumpkin Head (<10 %), Nugget Man (<25 %)", ["Auto Evil Noob"] = "Evil Noob automatique", ["Drops: Yellow Blade ( <5% ), Noob Friend ( <10% )"] = "Butin : Yellow Blade (<5 %), Noob Friend (<10 %)", ["Auto Lord Sus"] = "Lord Sus automatique", ["Drops: Purple Katana ( <5% ), Sus Pals ( <10% )"] = "Butin : Purple Katana (<5 %), Sus Pals (<10 %)", Race = "Race", ["Auto Awakening Orb"] = "Orbe d'éveil automatique", Floppa = "Floppa", ["Auto Floppa [ Exclusive Weapon ]"] = "Floppa automatique [arme exclusive]", Popcat = "Popcat", ["Clicks per Second"] = "Clics par seconde", ["Auto Popcat"] = "Popcat automatique", Unlock = "Débloquer", ["Auto Baller"] = "Baller automatique", ["Farms 10 balls and buys Baller"] = "Récolte 10 balles et achète Baller", ["Auto Weapons"] = "Armes automatiques", ["Farms the materials and unlocks the Weapons section"] = "Récolte les matériaux et débloque les armes", ["Auto Quest Limit"] = "Limite de quêtes automatique", ["Uses the Quest Scroll (or buys it)"] = "Utilise le Quest Scroll (ou l'achète)", ["Auto Gamepasses"] = "Passes automatiques", ["From level %i: farms gems and buys all gamepasses"] = "Dès le niveau %i : récolte des gemmes et achète tous les passes", Drops = "Butin", ["Collect all drops"] = "Ramasser tout le butin", ["Drop all powers"] = "Jeter tous les pouvoirs", Store = "Stocker", ["Auto Store Powers"] = "Stocker les pouvoirs automatiquement", Unstore = "Retirer du stockage", ["Select Power"] = "Choisir un pouvoir", ["Unstore Amount"] = "Quantité à retirer", ["Number: 1-99"] = "Nombre : 1-99", ["Unstore Power"] = "Retirer le pouvoir", ["Power Gacha"] = "Gacha de pouvoirs", ["Gacha Type"] = "Type de gacha", Money = "Argent", Gem = "Gemmes", ["Gacha Amount"] = "Nombre de gachas", ["Roll Powers"] = "Tirer des pouvoirs", ["Auto Reroll Power"] = "Tirer des pouvoirs automatiquement", ["Aura Color"] = "Couleur de l'aura", ["Auto Reroll Aura"] = "Changer l'aura automatiquement", Others = "Autres", ["Remove Gacha Animation"] = "Supprimer l'animation du gacha", ["Destroy stored Powers"] = "Détruire les pouvoirs quand le stockage est plein", ["Points Amount"] = "Nombre de points", ["Auto Stats"] = "Statistiques automatiques", ["Select Stats"] = "Choisir les statistiques", Health = "Santé", Melee = "Corps à corps", Locations = "Lieux", Islands = "Îles", Quests = "Quêtes", ["Bounty/Fame"] = "Prime/Renommée", ["Teleport to random player"] = "Se téléporter vers un joueur aléatoire", AimBot = "AimBot", ["AimBot Players"] = "AimBot sur les joueurs", ["AimBot Monsters"] = "AimBot sur les monstres", Esp = "ESP", ["Esp Players"] = "ESP des joueurs", ["Esp Islands"] = "ESP des îles", ["Safe Zone"] = "Zone sûre", ["PvP On"] = "JcJ actif", ["PvP Off"] = "JcJ désactivé", ["Auto Buy"] = "Achat automatique", ["Auto Buy Abilities"] = "Acheter les compétences automatiquement", ["Aura, Instinct & Flash Step"] = "Aura, Instinct et Flash Step", Weapons = "Armes", Ability = "Compétences", ["Fighting Style"] = "Style de combat", ["Buy %s"] = "Acheter %s", ["Start One Click [ BETA ]"] = "Démarrer un clic [BÊTA]", Settings = "Paramètres", ["Buy all gamepass"] = "Acheter tous les passes", ["farm gems and buy all gamepass"] = "Récolte des gemmes et achète tous les passes", ["Awaken Race V2"] = "Éveiller la race V2", ["get race V2 if you don't have"] = "Obtient la race V2 si nécessaire", ["Upgrade quest limit"] = "Augmenter la limite de quêtes", ["buy quest scroll and use"] = "Achète et utilise le Quest Scroll", ["Get all aura Colors"] = "Obtenir toutes les couleurs d'aura", ["get all aura colors after purchasing the aura"] = "Obtient toutes les couleurs après l'achat de l'aura", ["End-Game"] = "Objectif final", ["Farm Lord Sus"] = "Farmer Lord Sus", ["Farm Evil Noob"] = "Farmer Evil Noob", ["Farm Raid"] = "Farmer les raids", ["Redeem All Codes"] = "Utiliser tous les codes", ["Job id"] = "ID du serveur", ["Input Job Id"] = "Saisir l'ID du serveur", ["Join From Clipboard"] = "Rejoindre depuis le presse-papiers", ["Farm Distance"] = "Distance de farm", ["Auto Aura"] = "Aura automatique", ["Auto Attack"] = "Attaque automatique", ["Bring Mobs"] = "Regrouper les ennemis", ["Anti AFK"] = "Anti AFK", ["Auto Equip"] = "Équiper automatiquement", ["Sword & accessory"] = "Épée et accessoire", Team = "Équipe", ["Join Cheems Team"] = "Rejoindre l'équipe Cheems", ["Join Floppa Team"] = "Rejoindre l'équipe Floppa", ["Remove Notifications"] = "Supprimer les notifications", ["No Stun"] = "Sans étourdissement", ["Inf sky jump"] = "Sauts aériens infinis", Language = "Langue", ["Language changes apply on next run."] = "Le changement de langue s'applique au prochain lancement.", auto = "Automatique", ["Infinite Damage"] = "Dégâts infinis", ["Works with: Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power."] = "Fonctionne avec : Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power." }
+end)
+
+-- Module '_' (LVM5 Chunk 94): Translator & String Formatter
+registerModule("_", function()
+    local v_1 = modules.b()
+    local v_2 = modules.e()
+    local v_3 = { en = modules.W(), pt = modules.X(), es = modules.Y(), fr = modules.Z() }
+    local v_4 = {}
+    local v_5 = v_3.en
+    v_4.load = function(arg_1)
+        local v_2 = (arg_1 or v_2.language)
+        if ((not v_2) or (v_2 == "auto")) then
+            v_2 = v_1.localPlayer.LocaleId
+            if ((not v_2) or (v_2 == "")) then
+                v_2 = v_1.localizationService.RobloxLocaleId
+            end
+        end
+        local v_3 = (((type(v_2) == "string") and v_2:lower():match("^%a%a")) or "en")
+        v_4.language = ((v_3[v_3] and v_3) or "en")
+        v_5 = v_3[v_4.language]
+    end
+    v_4.get = function(arg_1)
+        local v_2 = (arg_1 and (v_5[arg_1] or v_3.en[arg_1]))
+        if (type(v_2) == "string") then
+            return v_2, nil
+        end
+        if (type(v_2) == "table") then
+            return (v_2[1] or arg_1), v_2[2]
+        end
+        if ((type(arg_1) == "string") and (arg_1:sub(1, 4) == "Buy ")) then
+            return (v_5["Buy %s"] or "Buy %s"):format(arg_1:sub(5)), nil
+        end
+        return arg_1, nil
+    end
+    v_4.format = function(arg_1, ...)
+        return string.format(v_4.get(arg_1), ...)
+    end
+    return v_4
+end)
+
+-- Module 'aa' (LVM5 Chunk 98): UI Library Wrapper (Window, Tabs, Controls & Flag Persistence)
+registerModule("aa", function()
+    local v_1 = modules.b()
+    local v_2 = modules._()
+    local v_3 = v_1.environment
+    local v_4 = {}
+    local v_5 = function(arg_1)
+        if (type(arg_1) == "number") then
+            return arg_1
+        end
+        if (type(arg_1) == "string") then
+            return tonumber(arg_1)
+        end
+        return nil
+    end
+    local v_6 = function(arg_1)
+        if (typeof(arg_1) == "Instance") then
+            return arg_1.Name
+        end
+        return tostring(arg_1)
+    end
+    local v_7 = function(arg_1)
+        local v_2, v_3 = v_2.get(arg_1[1])
+        return v_2, (v_3 or v_2.get(arg_1.description))
+    end
+    local v_8 = function(arg_1, arg_2)
+        local v_3 = arg_2
+        if (type(arg_1) == "function") then
+            v_3 = (v_3 or arg_1)
+        end
+        local v_4 = nil
+        if ((type(arg_1) == "table") and ((arg_1[1] ~= nil) and (arg_1[2] ~= nil))) then
+            v_4 = arg_1
+        end
+        return v_3, v_4
+    end
+    local v_9 = function(arg_1)
+        if (not arg_1) then
+            return nil
+        end
+        local v_2 = arg_1[1][arg_1[2]]
+        if ((type(v_2) == "table") and (next(v_2) == nil)) then
+            return nil
+        end
+        return v_2
+    end
+    local v_10 = function(arg_1, arg_2)
+        local v_3 = v_9(arg_1)
+        if (v_3 ~= nil) then
+            return v_3
+        end
+        if (arg_1 and (arg_2 ~= nil)) then
+            arg_1[1][arg_1[2]] = arg_2
+        end
+        return arg_2
+    end
+    local v_11 = {}
+    v_11.__index = v_11
+    local v_12 = function(arg_1)
+        return setmetatable({}, { __index = function(p2_1, p2_2)
+            local v2_3 = arg_1[p2_2]
+            if (type(v2_3) == "function") then
+                return function(p3_1, ...)
+                return v2_3(arg_1, ...)
+            end
+            end
+            return v2_3
+        end, __newindex = function(p2_1, p2_2, p2_3)
+            if (p2_2 == "OnChanging") then
+                arg_1:SetTextFilter(function(p3_1)
+                local v3_2 = p2_3(p3_1)
+                if (v3_2 == nil) then
+                    return nil
+                end
+                return tostring(v3_2)
+            end)
+            else
+                arg_1[p2_2] = p2_3
+            end
+        end })
+    end
+    v_11.addToggle = function(arg_1, arg_2)
+        local v_3, v_4 = v_7(arg_2)
+        local v_5 = arg_2[2]
+        if (type(v_5) == "string") then
+            v_4, v_5 = (v_4 or v_2.get(v_5)), nil
+        end
+        local v_6, v_7 = v_8(arg_2[3], arg_2.callback)
+        local v_8 = (v_10(v_7, (v_5 or false)) == true)
+        arg_1.raw:AddToggle({ Name = v_3, Description = v_4, Default = v_8, Flag = (arg_2.flag or arg_2[4]), Callback = function(p2_1)
+            if (p2_1 == nil) then
+                return
+            end
+            if v_7 then
+                v_7[1][v_7[2]] = p2_1
+            end
+            if v_6 then
+                v_6(p2_1)
+            end
+        end })
+    end
+    v_11.addDropdown = function(arg_1, arg_2)
+        local name, description = v_7(arg_2)
+        local multiSelect = (arg_2.multiSelect == true)
+        local callback, binding = v_8(arg_2[4], arg_2.callback)
+        local options, optionMap = {}, {}
+        for _, item in ipairs(arg_2[2] or {}) do
+            local displayName = v_2.get(v_6(item))
+            options[#options + 1] = displayName
+            optionMap[displayName] = item
+        end
+
+        local defaultValue
+        if multiSelect then
+            local selected = v_9(binding)
+            if selected == nil then
+                selected = {}
+                for _, displayName in ipairs(options) do
+                    selected[v_6(optionMap[displayName])] = false
+                end
+                for _, item in ipairs(arg_2[3] or {}) do
+                    selected[v_6(item)] = true
+                end
+                if binding then
+                    binding[1][binding[2]] = selected
+                end
+            end
+            defaultValue = {}
+            for _, displayName in ipairs(options) do
+                if selected[v_6(optionMap[displayName])] then
+                    defaultValue[#defaultValue + 1] = displayName
+                end
+            end
+        else
+            local selected = v_10(binding, arg_2[3])
+            if selected ~= nil and type(selected) ~= "table" and selected ~= "" then
+                defaultValue = v_2.get(v_6(selected))
+            end
+        end
+
+        local function onChanged(value)
+            if multiSelect then
+                if type(value) ~= "table" then return end
+                local selected, actualValues = {}, {}
+                for _, displayName in ipairs(options) do
+                    selected[v_6(optionMap[displayName])] = false
+                end
+                for _, displayName in ipairs(value) do
+                    local actual = optionMap[displayName]
+                    if actual ~= nil then
+                        selected[v_6(actual)] = true
+                        actualValues[#actualValues + 1] = actual
+                    end
+                end
+                if binding then
+                    binding[1][binding[2]] = selected
+                end
+                if callback then callback(actualValues) end
+                return
+            end
+
+            local displayName = (type(value) == "table" and value[1]) or value
+            local actual = optionMap[displayName]
+            if actual == nil then return end
+            if binding then
+                binding[1][binding[2]] = actual
+            end
+            if callback then callback(actual) end
+        end
+
+        arg_1.raw:AddDropdown({
+            Name = name,
+            Description = description,
+            Options = options,
+            Default = defaultValue,
+            MultiSelect = multiSelect,
+            Flag = (arg_2.flag or arg_2[5]),
+            Callback = onChanged,
+        })
+    end
+    v_11.addSlider = function(arg_1, arg_2)
+        local name, description = v_7(arg_2)
+        local minValue, maxValue = arg_2[2], arg_2[3]
+        local callback, binding = v_8(arg_2[6], arg_2.callback)
+        local initialValue = v_5(v_10(binding, arg_2[5])) or minValue
+        initialValue = math.clamp(initialValue, minValue, maxValue)
+        arg_1.raw:AddSlider({
+            Name = name,
+            Description = description,
+            Min = minValue,
+            Max = maxValue,
+            Increment = (arg_2[4] or 1),
+            Default = initialValue,
+            Flag = (arg_2.flag or arg_2[7]),
+            Callback = function(value)
+                if value == nil then return end
+                if binding then binding[1][binding[2]] = value end
+                if callback then callback(value) end
+            end,
+        })
+    end
+    v_11.addButton = function(arg_1, arg_2)
+        local v_3, v_4 = v_7(arg_2)
+        arg_1.raw:AddButton({ Name = v_3, Description = (v_4 or v_2.get(arg_2[3])), Debounce = arg_2.debounce, Callback = (arg_2[2] or (arg_2.callback or function()
+        end)) })
+    end
+    v_11.addTextBox = function(arg_1, arg_2)
+        local v_3, v_4 = v_7(arg_2)
+        local v_5, v_6 = v_8(arg_2[4], arg_2.callback)
+        local v_7 = v_10(v_6, (v_5(arg_2[2]) or arg_2[2]))
+        local v_8 = arg_1.raw:AddTextBox({ Name = v_3, Description = v_4, Default = (((v_7 ~= nil) and tostring(v_7)) or nil), ClearOnFocus = (arg_2[3] == true), Placeholder = v_2.get((arg_2[5] or arg_2.placeholder)), Flag = arg_2.flag, Callback = function(p2_1)
+            if (p2_1 == nil) then
+                return
+            end
+            if v_6 then
+                v_6[1][v_6[2]] = (v_5(p2_1) or p2_1)
+            end
+            if v_5 then
+                v_5(p2_1)
+            end
+        end })
+        return v_12(v_8)
+    end
+    v_11.addSection = function(arg_1, arg_2)
+        return arg_1.raw:AddSection(v_2.get(arg_2))
+    end
+    v_11.addDiscordInvite = function(arg_1, arg_2)
+        return arg_1.raw:AddDiscordInvite({ Title = (arg_2.title or arg_2.name), Description = arg_2.description, Banner = (arg_2.banner or arg_2.logo), Logo = arg_2.logo, Invite = arg_2.invite, Members = arg_2.members, Online = arg_2.online })
+    end
+    v_11.select = function(arg_1)
+        arg_1.raw:Select()
+    end
+    v_4.makeWindow = function(arg_1, arg_2)
+        return arg_1:MakeWindow({ Title = arg_2.title, SubTitle = arg_2.subtitle, ScriptFolder = arg_2.scriptFolder })
+    end
+    v_4.makeTab = function(arg_1, arg_2)
+        local v_3 = v_2.get(arg_2.title)
+        return setmetatable({ raw = arg_1:MakeTab({ Title = v_3, Icon = arg_2.icon }) }, v_11)
+    end
+    v_4.addMinimizeButton = function(arg_1, arg_2)
+        local v_3 = arg_1:NewMinimizer({ KeyCode = Enum.KeyCode.LeftControl })
+        local v_4 = v_3:CreateMobileMinimizer((arg_2.button or {}))
+        if arg_2.corner then
+            local v_5 = Instance.new("UICorner")
+            for v_6, v_7 in pairs(arg_2.corner) do
+                v_5[v_6] = v_7
+            end
+            v_5.Parent = v_4
+        end
+        return v_3
+    end
+    v_4.toggle = function(arg_1, arg_2, arg_3, arg_4)
+        arg_2.flag = (arg_2.flag or arg_3)
+        arg_2.callback = (arg_4 or function(p2_1)
+            v_3[arg_2.flag] = p2_1
+        end)
+        arg_1:addToggle(arg_2)
+    end
+    v_4.section = function(arg_1, arg_2)
+        arg_1:addSection(arg_2)
+    end
+    return v_4
+end)
+
+-- Module 'ab': UI Tab: Main Farming & Sea Events (Chunks 114 & 115)
+registerModule("ab", function()
+    local v_1 = modules._()
+    local v_2 = modules.b()
+    local v_3 = modules.e()
+    local v_4 = modules.a()
+    local v_5 = modules.w()
+    local v_6 = modules.r()
+    local v_7 = modules.n()
+    local v_8 = v_2.environment
+    return function(tab, addToggle, addSection)
+        local uiScales = { Large = 1, Medium = 0.75, Small = 0.6 }
+        local allSkills = { "Z", "X", "C", "V", "F" }
+        local defaultSkills = { "Z", "X" }
+        local function onScaleChanged(scaleName)
+            v_4.library:SetUIScale(uiScales[scaleName] or 1)
+        end
+        tab:addDropdown({ "Farm Tool", v_5.toolTypes, v_3.toolFarm, { v_3, "toolFarm" }, "toolFarm" })
+        tab:addDropdown({ "UI Scale", { "Small", "Medium", "Large" }, "Large", onScaleChanged, "uiScale" })
+        addToggle(tab, { "Infinite Damage", "Works with: Popcat, Baller, Paw Power, Snow Power, Sand Power, Water Power." }, "infiniteDamage")
+        addSection(tab, "Farm")
+        addToggle(tab, { "Auto Farm Level", v_1.format("MaxLevel: %i", v_5.maxLevel) }, "levelFarm")
+        addToggle(tab, { "Auto Farm Nearest" }, "nearestFarm")
+        addSection(tab, "Enemies")
+        tab:addDropdown({ "Select Enemie", v_7.enemyList, v_7.enemyList[1], { v_8, "selectedEnemy" }, "selectedEnemy" })
+        addToggle(tab, { "Auto Farm Selected" }, "farmSelectedEnemy")
+        addToggle(tab, { "Take Quest [ Enemie Selected ]", true }, "takeSelectedQuest")
+        addSection(tab, "Sea Event")
+        addToggle(tab, { "Auto Meme Beast [ Spawns every 30 Minutes ]", "Drops: Portal ( <25% ), Meme Cube ( <50% )" }, "memeBeast")
+        addSection(tab, "Raid")
+        addToggle(tab, { "Auto Farm Raid", v_1.format("Req: Level %i", v_6.level.raid) }, "raidFarm")
+        addSection(tab, "Skills")
+        tab:addDropdown({ "Select Skills", allSkills, defaultSkills, { v_3, "skillsSelected" }, "skillsSelected", multiSelect = true })
+        addToggle(tab, { "Auto Use Skills" }, "autoSkill")
+    end
+end)
+
+-- Module 'ac' (LVM5 Chunk 118): UI Tab: Bosses, Weapons, Race V2 & Popcat Clicker
+registerModule("ac", function()
+    local v_1 = modules._()
+    local v_2 = modules.b()
+    local v_3 = modules.f()
+    local v_4 = modules.i()
+    local v_5 = modules.r()
+    local v_6 = modules.e()
+    local v_7 = v_2.environment
+    local v_8 = v_2.runService
+    local v_9 = v_2.newCFrame
+    return function(arg_1, arg_2, arg_3)
+        if v_7.popcatConnection then
+            v_7.popcatConnection:Disconnect()
+        end
+        local v_4 = nil
+        local v_5 = 0
+        local v_6 = function(p2_1)
+            v_5 = (v_5 + 1)
+            local v2_2 = v_5
+            v_7.clickPopcat = p2_1
+            if v_4 then
+                v_4:Disconnect()
+                v_4 = nil
+            end
+            v_7.popcatConnection = nil
+            if (not p2_1) then
+                return
+            end
+            local v2_3 = v_3.island.FloppaIsland.Popcat_Clickable.Part.ClickDetector
+            if (v_4.goTo(v_9(400, -37, -588)) == false) then
+                v_7.clickPopcat = false
+                return
+            end
+            if ((v2_2 ~= v_5) or (not v_7.clickPopcat)) then
+                return
+            end
+            local v2_4 = 0
+            v_4 = v_8.Heartbeat:Connect(function(p3_1)
+                if ((not v_7.clickPopcat) or (not v2_3.Parent)) then
+                    v_4:Disconnect()
+                    v_4 = nil
+                    v_7.popcatConnection = nil
+                    return
+                end
+                local v3_2 = math.floor(math.clamp((tonumber(v_6.popcatClicksPerSecond) or 10), 1, 100))
+                v2_4 = math.min((v2_4 + p3_1), 1)
+                local v3_3 = math.floor(((v2_4 * v3_2) + 1e-09))
+                v2_4 = math.max(0, (v2_4 - (v3_3 / v3_2)))
+                for v3_4 = 1, v3_3 do
+                    fireclickdetector(v2_3)
+                end
+            end)
+            v_7.popcatConnection = v_4
+        end
+        arg_3(arg_1, "Bosses")
+        arg_2(arg_1, { "Auto Giant Pumpkin", "Drops: Pumpkin Head ( <10% ), Nugget Man ( <25% )" }, "giantPumpkin")
+        arg_2(arg_1, { "Auto Evil Noob", "Drops: Yellow Blade ( <5% ), Noob Friend ( <10% )" }, "evilNoob")
+        arg_2(arg_1, { "Auto Lord Sus", "Drops: Purple Katana ( <5% ), Sus Pals ( <10% )" }, "lordSus")
+        arg_3(arg_1, "Race")
+        arg_2(arg_1, { "Auto Awakening Orb", v_1.format("Req: Level %i", v_5.level.raceV2Orb) }, "raceV2Orb")
+        arg_3(arg_1, "Floppa")
+        arg_2(arg_1, { "Auto Floppa [ Exclusive Weapon ]" }, "floppaSword")
+        arg_3(arg_1, "Popcat")
+        arg_1:addSlider({ "Clicks per Second", 1, 100, 1, v_6.popcatClicksPerSecond, { v_6, "popcatClicksPerSecond" }, "popcatClicksPerSecond" })
+        arg_2(arg_1, { "Auto Popcat" }, "clickPopcat", v_6)
+        arg_3(arg_1, "Unlock")
+        arg_2(arg_1, { "Auto Baller", "Farms 10 balls and buys Baller" }, "unlockBaller")
+        arg_2(arg_1, { "Auto Weapons", "Farms the materials and unlocks the Weapons section" }, "unlockWeapons")
+        arg_2(arg_1, { "Auto Quest Limit", "Uses the Quest Scroll (or buys it)" }, "unlockQuestLimit")
+        arg_2(arg_1, { "Auto Gamepasses", v_1.format("From level %i: farms gems and buys all gamepasses", v_5.level.gamepasses) }, "unlockGamepasses")
+    end
+end)
+
+-- Module 'ad' (LVM5 Chunk 122): Aura & Instinct Reroll / Team Join / Codes Helper
+registerModule("ad", function()
+    local v_1 = modules.f()
+    local v_2 = modules.h()
+    local v_3 = modules.j()
+    local v_4 = modules.m()
+    local v_5 = modules.u()
+    local v_6 = {}
+    v_6.redeemCodes = function()
+        return pcall(function()
+            for v2_1, v2_2 in pairs(require(v_1.gameModules.CodeList)) do
+                if ((type(v2_1) == "string") and ((type(v2_2) == "table") and v2_2.Status)) then
+                    v_2.invoke("code", v2_1)
+                end
+            end
+        end)
+    end
+    v_6.randomAura = function()
+        if (v_4.getData("Gem") >= v_5.actionPrices.rerollAura.Gem) then
+            if v_3:canRerollAura() then
+                v_2.fire("modules", "Reroll_Color", "Halfed Sorcerer")
+            else
+                return true
+            end
+        end
+    end
+    v_6.joinTeam = { cheems = function()
+        v_2.fire("modules", "Change_Team", "Cheems Recruiter")
+    end, floppa = function()
+        v_2.fire("modules", "Change_Team", "Floppa Recruiter")
+    end }
+    return v_6
+end)
+
+-- Module 'ae' (LVM5 Chunk 124): Power Gacha Roll Controller
+registerModule("ae", function()
+    local v_1 = modules.b()
+    local v_2 = modules.h()
+    local v_3 = {}
+    local v_4 = false
+    v_3.normalizeAmount = function(arg_1)
+        local v_2 = tonumber(arg_1)
+        if ((not v_2) or (v_2 ~= v_2)) then
+            return 1
+        end
+        return math.floor(math.clamp(v_2, 1, 500))
+    end
+    v_3.roll = function(arg_1, arg_2, arg_3)
+        if v_4 then
+            return false
+        end
+        v_4 = true
+        local v_4 = v_3.normalizeAmount(arg_1)
+        local v_5 = v_4
+        local v_6 = false
+        local v_7 = (((arg_2 == "Gem") and "Doge Gacha") or "Floppa Gacha")
+        for v_8 = 1, v_4 do
+            v_1.spawn(function()
+            if ((not arg_3) or arg_3()) then
+                local v2_1, v2_2 = pcall(v_2.fire, "modules", "Random_Power", { Type = "Once", NPCName = v_7, GachaType = (((arg_2 == "Gem") and "Gem") or "Money") })
+                if (not v2_1) then
+                    if (not v_6) then
+                        warn(("Gacha: " .. tostring(v2_2)))
+                    end
+                    v_6 = true
+                end
+            end
+            v_5 = (v_5 - 1)
+        end)
+        end
+        while (v_5 > 0) do
+            v_1.wait()
+        end
+        v_4 = false
+        return (not v_6)
+    end
+    return v_3
+end)
+
+-- Module 'af': UI Tab: Powers, Store/Unstore, Gacha & Aura Reroll (Chunks 125, 126, 127, 128, 130)
+registerModule("af", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.e()
+    local v_4 = modules.h()
+    local v_5 = modules.j()
+    local v_6 = modules.ad()
+    local v_7 = modules.ae()
+    local v_8 = v_1.environment
+    local v_9 = v_1.wait
+    local v_10 = v_1.spawn
+    local v_11 = v_1.localPlayer
+    local v_12 = v_2.itemFolder
+    return function(tab)
+        local v1_1 = { "Money", "Gem" }
+        local function v1_2(tool)
+            return tool:IsA("Tool") and (tool.ToolTip == "Power" and tool:GetAttribute("Using") == nil)
+        end
+        local v1_3 = false
+        local autoRerollPowerFn = function(p2_1)
+            v_8.autoRerollPower = p2_1
+            if ((not p2_1) or v1_3) then
+                return
+            end
+            v1_3 = true
+            while v_8.autoRerollPower do
+                local v2_2 = v_7.roll(v_3.gachaAmount, v_3.rerollPowerMethod, function()
+                return v_8.autoRerollPower
+            end)
+                if (not v2_2) then
+                    v_1.wait(0.5)
+                end
+                v_9(0.1)
+            end
+            v1_3 = false
+        end
+        local function rollPowersOnce()
+            v_7.roll(v_3.gachaAmount, v_3.rerollPowerMethod)
+        end
+        local autoStorePowersFn = function(p2_1)
+            v_8.autoStorePowers = p2_1
+            while v_8.autoStorePowers do
+                v_9(0.1)
+                for v2_2, v2_3 in ipairs(v_11.Backpack:GetChildren()) do
+                    if v1_2(v2_3) then
+                        if v_5:canStorePower(v2_3.Name) then
+                            v2_3.Parent = v_11.Character
+                            v_4.fire("modules", "Eatable_Power", { Action = "Store", Tool = v2_3 })
+                        else
+                            if v_3.destroyMaxCap then
+                                v2_3:Destroy()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        local collectAllDropsFn = function()
+            for v2_1, v2_2 in ipairs(workspace.Dropped_Items:GetChildren()) do
+                if (v2_2:FindFirstChild("Handle") and v2_2.Handle:FindFirstChild("TouchInterest")) then
+                    firetouchinterest(v2_2.Handle, v_11.Character.PrimaryPart, 0)
+                end
+            end
+        end
+        local function dropAllPowersFn()
+            for _, tool in ipairs(v_11.Backpack:GetChildren()) do
+                if v1_2(tool) then
+                    tool.Parent = v_11.Character
+                    v_4.fire("modules", "Eatable_Power", { Action = "Drop", Tool = tool })
+                end
+            end
+        end
+        local function clampUnstoreAmount(val)
+            local num = tonumber(val)
+            return (num and math.clamp(num, 1, 99)) or 1
+        end
+        local function setUnstorePower(item)
+            v_3.unstorePower = item and item.Name
+        end
+        local function unstorePowerFn()
+            for _ = 1, (v_3.unstoreAmount or 1), 1 do
+                v_10(function()
+                    v_4.invoke("updateInventory", "Power", { Action = "Unstore", SelectedItem = v_3.unstorePower })
+                end)
+            end
+        end
+        local function autoRerollAuraFn(state)
+            v_8.autoRerollAura = state
+            while v_8.autoRerollAura do
+                v_9()
+                if v_6.randomAura() then
+                    break
+                end
+            end
+        end
+        local function toggleGachaAnimation(hide)
+            v_11.PlayerGui.GachaGui.GachaFrame.Visible = not hide
+        end
+        tab:addSection("Drops")
+        tab:addButton({ "Collect all drops", collectAllDropsFn })
+        tab:addButton({ "Drop all powers", dropAllPowersFn })
+        tab:addSection("Store")
+        tab:addToggle({ "Auto Store Powers", false, autoStorePowersFn, "autoStore" })
+        tab:addSection("Unstore")
+        tab:addDropdown({ "Select Power", v_12.Power:GetChildren(), "", setUnstorePower, "unstorePower" })
+        tab:addTextBox({ "Unstore Amount", "1", false, { v_3, "unstoreAmount" }, "Number: 1-99" }).OnChanging = clampUnstoreAmount
+        tab:addButton({ "Unstore Power", unstorePowerFn })
+        tab:addSection("Power Gacha")
+        tab:addDropdown({ "Gacha Type", v1_1, "Money", { v_3, "rerollPowerMethod" }, "rerollPowerMethod" })
+        tab:addTextBox({
+            "Gacha Amount",
+            tostring(v_3.gachaAmount),
+            false,
+            function(val)
+                v_3.gachaAmount = v_7.normalizeAmount(val)
+            end,
+            "1-500",
+            flag = "gachaAmount"
+        }).OnChanging = v_7.normalizeAmount
+        tab:addButton({ "Roll Powers", rollPowersOnce })
+        tab:addToggle({ "Auto Reroll Power", false, autoRerollPowerFn, "autoRerollPower" })
+        tab:addSection("Aura Color")
+        tab:addToggle({ "Auto Reroll Aura", false, autoRerollAuraFn, "autoRerollAura" })
+        tab:addSection("Others")
+        tab:addToggle({ "Remove Gacha Animation", false, toggleGachaAnimation, "gachaAnimation" })
+        tab:addToggle({ "Destroy stored Powers", false, { v_3, "destroyMaxCap" }, "destroyStored" })
+    end
+end)
+
+-- Module 'ag' (LVM5 Chunk 133): UI Tab: Stats & Auto-Upgrade Points
+registerModule("ag", function()
+    local v_1 = modules.b()
+    local v_2 = modules.e()
+    local v_3 = modules.h()
+    local v_4 = modules.w()
+    local v_5 = modules.m()
+    local v_6 = v_1.environment
+    local v_7 = v_1.wait
+    local v_8 = v_5.getData
+    return function(arg_1)
+        local v_2 = {}
+        local v_3 = { "Power", "Health", "Weapon", "Melee" }
+        local v_4 = { Power = "MemePowerLevel", Health = "DefenseLevel", Weapon = "SwordLevel", Melee = "MeleeLevel" }
+        local v_5 = function(p2_1)
+            v_6.autoStats = p2_1
+            while v_6.autoStats do
+                v_7()
+                local v2_2 = v_8("SkillPoint")
+                if (v2_2 >= 1) then
+                    for v2_3, v2_4 in pairs(v_2) do
+                        local v2_5 = v_4[v2_3]
+                        local v2_6 = (v_4.maxLevel - v_8(v2_5))
+                        if (v2_4 and (v2_6 > 0)) then
+                            local v2_7 = math.clamp(math.min((v_2.statsPoints or 3), v2_2), 1, v2_6)
+                            v_3.invoke("statsFunction", { Target = v2_5, Action = "UpgradeStats", Amount = v2_7 })
+                        end
+                    end
+                end
+            end
+        end
+        arg_1:addSlider({ "Points Amount", 1, 100, 1, v_2.statsPoints, { v_2, "statsPoints" }, "statsPoints" })
+        arg_1:addToggle({ "Auto Stats", false, v_5, "autoStats" })
+        arg_1:addSection("Select Stats")
+        for v_6, v_7 in ipairs(v_3) do
+            arg_1:addToggle({ v_7, false, { v_2, v_7 }, ("select" .. v_7) })
+        end
+    end
+end)
+
+-- Module 'ah' (LVM5 Chunk 134): UI Tab: Teleport (Islands & Quests)
+registerModule("ah", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.w()
+    local v_4 = modules.i()
+    local v_5 = v_1.insert
+    return function(arg_1)
+        local v_2 = {}
+        for v_3, v_4 in ipairs(v_2.location:WaitForChild("SpawnLocations"):GetChildren()) do
+            if (not table.find(v_3.ignoredSpawns, v_4.Name)) then
+                v_5(v_2, v_4)
+            end
+        end
+        local v_5 = function(p2_1)
+            if (typeof(p2_1) ~= "Instance") then
+                return
+            end
+            local v2_2 = ((p2_1:IsA("BasePart") and p2_1.CFrame) or p2_1:GetPivot())
+            return v_4.goTo(v2_2)
+        end
+        arg_1:addSection("Locations")
+        arg_1:addDropdown({ "Islands", v_2, {}, v_5 })
+        arg_1:addDropdown({ "Quests", v_2.questLocation:GetChildren(), {}, v_5 })
+    end
+end)
+
+-- Module 'ai': UI Tab: Abilities & Fighting Styles Shop (Chunks 135 & 136)
+registerModule("ai", function()
+    local v_1 = modules.b()
+    local v_2 = modules.h()
+    local v_3 = modules.x()
+    local v_4 = modules.z()
+    local v_5 = v_1.environment
+    local v_6 = v_1.wait
+    return function(tab)
+        local function autoBuyAbilitiesFn(state)
+            v_5.autoBuyAbility = state
+            while v_5.autoBuyAbility do
+                v_6()
+                v_4:buyAllAbilities()
+            end
+        end
+        tab:addSection("Auto Buy")
+        tab:addToggle({ "Auto Buy Abilities", false, autoBuyAbilitiesFn, "autoBuyAbility", description = "Aura, Instinct & Flash Step" })
+        for _, section in ipairs(v_3.sections) do
+            tab:addSection(section.name)
+            for _, item in ipairs(section.items) do
+                local remoteArgs = item.remote
+                tab:addButton({
+                    "Buy " .. item.name,
+                    function()
+                        v_2.fire("modules", unpack(remoteArgs))
+                    end,
+                    description = item.description
+                })
+            end
+        end
+    end
+end)
+
+-- Module 'aj' (LVM5 Chunk 138): UI Tab: Shop (Weapons, Fight Styles & Gamepasses)
+registerModule("aj", function()
+    local v_1 = modules.b()
+    local v_2 = modules.i()
+    local v_3 = {}
+    v_3.isInSafeZone = function(arg_1)
+        local v_2 = (arg_1 and arg_1.Character)
+        return ((v_2 ~= nil) and (v_2:GetAttribute("Safezone") == true))
+    end
+    v_3.isRaiding = function(arg_1)
+        return ((arg_1 ~= nil) and (arg_1:GetAttribute("Raiding") == true))
+    end
+    v_3.isPvpOn = function(arg_1)
+        local v_2 = (arg_1 and arg_1.Character)
+        if ((not v_2.isAlive(v_2)) or (v_3.isInSafeZone(arg_1) or v_3.isRaiding(arg_1))) then
+            return false
+        end
+        local v_3 = v_2:GetAttribute("PvpDisabled")
+        if (v_3 == true) then
+            return false
+        end
+        if ((type(v_3) == "number") and ((tick() - v_3) < 600)) then
+            return false
+        end
+        return true
+    end
+    v_3.getTeamColor = function(arg_1)
+        if (arg_1 and (arg_1.Team and (not arg_1.Neutral))) then
+            return arg_1.TeamColor.Color
+        end
+        return Color3.fromRGB(220, 220, 220)
+    end
+    v_3.isOpponent = function(arg_1)
+        local v_2 = v_1.localPlayer
+        if ((not arg_1) or (arg_1 == v_2)) then
+            return false
+        end
+        if (arg_1.Neutral or (v_2.Neutral or ((not arg_1.Team) or (not v_2.Team)))) then
+            return true
+        end
+        return ((arg_1.Team.Name == "Floppa") or (arg_1.Team ~= v_2.Team))
+    end
+    v_3.canAttack = function(arg_1)
+        return (v_3.isOpponent(arg_1) and v_3.isPvpOn(arg_1))
+    end
+    return v_3
+end)
+
+-- Module 'ak' (LVM5 Chunk 139): Player ESP & Hitbox Visualizer
+registerModule("ak", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.e()
+    local v_4 = modules.l()
+    local v_5 = modules.aj()
+    local v_6 = v_1.players
+    local v_7 = v_1.localPlayer
+    local v_8 = v_1.environment
+    local v_9 = v_1.wait
+    local v_10 = v_1.huge
+    local v_11 = v_1.newCFrame
+    local v_12 = v_1.newVector3
+    local v_13 = v_2.characters
+    local v_14 = function()
+        local v_1 = v_10
+        local v_2 = nil
+        for v_3, v_4 in ipairs(v_6:GetPlayers()) do
+            local v_5 = v_4.Character
+            if (v_5.canAttack(v_4) and (v_5.Parent == v_13)) then
+                local v_6 = v_4:FindFirstChild("PlayerData")
+                local v_7 = (v_6 and v_6:FindFirstChild("Level"))
+                local v_8 = (v_7 and v_7.Value)
+                if (v_8 and (v_8 < v_1)) then
+                    v_1 = v_8
+                    v_2 = v_5
+                end
+            end
+        end
+        return v_2
+    end
+    local v_15 = function(arg_1)
+        local v_2 = (arg_1 and v_6:GetPlayerFromCharacter(arg_1))
+        return (v_5.canAttack(v_2) and (arg_1.Parent == v_13))
+    end
+    return function()
+        local v_1 = {}
+        v_1.goToRandom = function(p2_1)
+            v_8.randomBounty = p2_1
+            local v2_2 = v_14()
+            while v_8.randomBounty do
+                v_9()
+                if v_15(v2_2) then
+                    local v2_3 = v2_2.PrimaryPart
+                    if (v2_3 and (v_7:DistanceFromCharacter(v2_3.Position) >= 350)) then
+                        characterSystem.goTo((v2_3.CFrame * v_11(0, 0, 30)))
+                    end
+                else
+                    v2_2 = v_14()
+                end
+            end
+        end
+        v_1.autoBounty = function(p2_1)
+            v_8.autoBounty = p2_1
+            local v2_2 = v_14()
+            while v_8.autoBounty do
+                v_9()
+                if v_15(v2_2) then
+                    local v2_3 = v2_2.PrimaryPart
+                    if v2_3 then
+                        if v2_2:FindFirstChild("Reverse_Mark") then
+                            characterSystem.goTo((v2_3.CFrame + v_12(0, 400, 0)))
+                        else
+                            characterSystem.goTo((v2_3.CFrame * v_3.farmCFrame))
+                            v_4.playerClick()
+                            v_4.useSkills()
+                            v_4.equipWeapon()
+                        end
+                    end
+                else
+                    v2_2 = v_14()
+                end
+            end
+        end
+        return v_1
+    end
+end)
+
+-- Module 'al' (LVM5 Chunk 141): UI Tab: PvP / Players & AimBot Settings
+registerModule("al", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.w()
+    local v_4 = modules.aj()
+    local v_5 = modules._()
+    local v_6 = v_1.players
+    local v_7 = v_1.localPlayer
+    local v_8 = v_1.coreGui
+    local v_9 = v_1.runService
+    local v_10 = v_1.environment
+    local v_11 = v_1.wait
+    local v_12 = v_1.newVector3
+    local v_13 = function(arg_1)
+        return tostring(arg_1):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub("\"", "&quot;")
+    end
+    return function()
+        for v_1, v_2 in pairs((v_10.espConnections or {})) do
+            v_2:Disconnect()
+        end
+        local v_3 = {}
+        v_10.espConnections = v_3
+        local v_4 = Instance.new("Folder")
+        v_4.Name = "rz_Esp"
+        local v_5 = v_8:FindFirstChild(v_4.Name)
+        if v_5 then
+            v_5:Destroy()
+        end
+        local v_6 = function(p2_1)
+            local v2_2 = Instance.new("Folder")
+            v2_2.Name = p2_1
+            v2_2.Parent = v_4
+            return v2_2
+        end
+        local v_7 = { players = v_6("Players"), islands = v_6("Islands") }
+        v_4.Parent = v_8
+        local v_8 = {}
+        local v_9 = function(p2_1, p2_2, p2_3, p2_4)
+            if ((not p2_2.Parent) or v_8[p2_2]) then
+                return
+            end
+            local v2_5 = ((p2_2:IsA("Model") and p2_2.PrimaryPart) or p2_2)
+            if (not v2_5) then
+                return
+            end
+            v_8[p2_2] = true
+            local v2_6 = Instance.new("BoxHandleAdornment")
+            v2_6.Adornee = v2_5
+            v2_6.Size = v_12(1, 0, 1)
+            v2_6.Name = p2_2.Name
+            v2_6.AlwaysOnTop = true
+            v2_6.ZIndex = 10
+            v2_6.Transparency = 0
+            local v2_7 = Instance.new("BillboardGui")
+            v2_7.Adornee = v2_5
+            v2_7.Size = UDim2.new(0, 100, 0, 150)
+            v2_7.StudsOffset = v_12(0, 1, 0)
+            v2_7.AlwaysOnTop = true
+            local v2_8 = Instance.new("TextLabel")
+            v2_8.BackgroundTransparency = 1
+            v2_8.Position = UDim2.new(0, 0, 0, -50)
+            v2_8.Size = UDim2.new(0, 100, 0, 100)
+            v2_8.TextSize = 10
+            v2_8.TextColor3 = (p2_3 or Color3.new(1, 1, 1))
+            v2_8.TextStrokeTransparency = 0
+            v2_8.TextYAlignment = Enum.TextYAlignment.Bottom
+            v2_8.Text = "..."
+            v2_8.ZIndex = 15
+            v2_8.RichText = true
+            v2_8.Parent = v2_7
+            v2_7.Parent = v2_6
+            v2_6.Parent = p2_1
+            local v2_9 = ("esp" .. p2_1.Name)
+            local v2_10 = nil
+            v2_10 = v_9.Stepped:Connect(function()
+                if ((not v_10[v2_9]) or ((not p2_2.Parent) or ((not v2_5.Parent) or (not v2_6.Parent)))) then
+                    v_8[p2_2] = nil
+                    v_3[p2_2] = nil
+                    v2_10:Disconnect()
+                    v2_6:Destroy()
+                    return
+                end
+                local v3_1 = math.floor(v_7:DistanceFromCharacter(v2_5.Position))
+                local v3_2 = p2_2:FindFirstChild("Humanoid")
+                if v3_2 then
+                    local v3_3 = ("[ %i/%i ] "):format(math.floor(v3_2.Health), math.floor(v3_2.MaxHealth))
+                    local v3_4 = v_13(p2_2.Name)
+                    local v3_5 = ""
+                    if p2_4 then
+                        local v3_6 = v_4.getTeamColor(p2_4)
+                        v3_4 = ("<font color='#%s'>%s</font>"):format(v3_6:ToHex(), v3_4)
+                        local v3_7 = v_4.isPvpOn(p2_4)
+                        local v3_8 = v_5.get(((v3_7 and "PvP On") or "PvP Off"))
+                        if v_4.isInSafeZone(p2_4) then
+                            v3_8 = (v3_8 .. (" · " .. v_5.get("Safe Zone")))
+                        end
+                        v3_5 = ("\n<font color='%s'>%s</font>"):format(((v3_7 and "#19F019") or "#F0A019"), v_13(v3_8))
+                    end
+                    v2_8.Text = (v3_4 .. ("<font color='rgb(160, 160, 160)'> [ " .. (v3_1 .. ("m ]</font>\n" .. ("<font color='rgb(25, 240, 25)'>" .. (v3_3 .. ("</font>" .. v3_5)))))))
+                else
+                    v2_8.Text = ("%s [ %i ]"):format(p2_2.Name, v3_1)
+                end
+            end)
+            v_3[p2_2] = v2_10
+        end
+        local v_10 = {}
+        v_10.players = function(p2_1)
+            v_10.espPlayers = p2_1
+            while v_10.espPlayers do
+                for v2_2, v2_3 in ipairs(v_6:GetPlayers()) do
+                    if ((v2_3 ~= v_7) and v2_3.Character) then
+                        v_9(v_7.players, v2_3.Character, Color3.fromRGB(220, 220, 220), v2_3)
+                    end
+                end
+                v_11(0.5)
+            end
+        end
+        v_10.islands = function(p2_1)
+            v_10.espIslands = p2_1
+            if (not p2_1) then
+                return
+            end
+            for v2_2, v2_3 in ipairs(v_2.location:WaitForChild("SpawnLocations"):GetChildren()) do
+                if (not table.find(v_3.ignoredSpawns, v2_3.Name)) then
+                    v_9(v_7.islands, v2_3, Color3.fromRGB(0, 255, 255))
+                end
+            end
+        end
+        return v_10
+    end
+end)
+
+-- Module 'am' (LVM5 Chunk 143): UI Tab: Discord Invite & Credits
+registerModule("am", function()
+    local v_1 = modules.b().environment
+    local v_2 = modules.ak()
+    local v_3 = modules.al()
+    return function(arg_1)
+        local v_2 = v_2()
+        local v_3 = v_3()
+        arg_1:addSection("Bounty/Fame")
+        arg_1:addToggle({ "Teleport to random player", false, v_2.goToRandom })
+        arg_1:addSection("AimBot")
+        arg_1:addToggle({ "AimBot Players", false, { v_1, "aimBotPlayers" }, "aimBotPlayers" })
+        arg_1:addToggle({ "AimBot Monsters", false, { v_1, "aimBotEnemy" }, "aimBotEnemy" })
+        arg_1:addSection("Esp")
+        arg_1:addToggle({ "Esp Players", false, v_3.players })
+        arg_1:addToggle({ "Esp Islands", false, v_3.islands })
+    end
+end)
+
+-- Module 'an': UI Tab: One-Click Automation (Chunks 144, 145, 146)
+registerModule("an", function()
+    local v_1 = modules.b()
+    local v_2 = modules.z()
+    local v_3 = modules.j()
+    local v_4 = modules.ad()
+    local v_5 = modules.m()
+    local v_6 = modules.r()
+    local v_7 = v_1.environment
+    local v_8 = v_1.wait
+    local v_9 = v_1.spawn
+    local v_10 = v_5.getPlayerLevel
+    return function(tab)
+        local endGameOptions = { "Farm Lord Sus", "Farm Evil Noob", "Farm Raid" }
+        local oneClickToggles = {
+            { "Buy all gamepass", "farm gems and buy all gamepass", "getGamepasses", true },
+            { "Awaken Race V2", "get race V2 if you don't have", "awakenV2", true },
+            { "Upgrade quest limit", "buy quest scroll and use", "questLimit", true },
+            { "Get all aura Colors", "get all aura colors after purchasing the aura", "allAuraColors", true }
+        }
+        local startOneClickFn = function(p2_1)
+            v_7.oneClick = p2_1
+            v_7.oneClickRunId = ((v_7.oneClickRunId or 0) + 1)
+            local v2_2 = v_7.oneClickRunId
+            if (not p2_1) then
+                return
+            end
+            local v2_3 = function()
+                return (v_7.oneClick and (v_7.oneClickRunId == v2_2))
+            end
+            v_9(function()
+                local v3_1 = false
+                local v3_2 = nil
+                while v2_3() do
+                    v_8(0.2)
+                    if (not v2_3()) then
+                        break
+                    end
+                    local v3_3, v3_4 = pcall(function()
+                    local v4_1 = v_7.oneClickSettings
+                    v_3:equipAccessory()
+                    v_3:equipSword()
+                    v_2:buyMissingWeapon()
+                    if (not v2_3()) then
+                        return
+                    end
+                    if (not v_7.autoBuyAbility) then
+                        v_2:buyAllAbilities()
+                    end
+                    if (not v2_3()) then
+                        return
+                    end
+                    if ((not v3_1) and (v_10() >= v_6.level.codes)) then
+                        v3_1 = (v_4.redeemCodes() == true)
+                    end
+                    if (not v2_3()) then
+                        return
+                    end
+                    v_2:buyBaller()
+                    if (not v2_3()) then
+                        return
+                    end
+                    if (v4_1.allAuraColors and v_3:verifyAbility("Aura")) then
+                        v_4.randomAura()
+                    end
+                end)
+                    if ((not v3_3) and (v3_4 ~= v3_2)) then
+                        warn(("[One Click] " .. tostring(v3_4)))
+                    end
+                    v3_2 = (((not v3_3) and v3_4) or nil)
+                end
+            end)
+        end
+        tab:addToggle({ "Start One Click [ BETA ]", false, startOneClickFn, "oneClick" })
+        tab:addSection("Settings")
+        for _, toggleInfo in ipairs(oneClickToggles) do
+            tab:addToggle({
+                toggleInfo[1],
+                toggleInfo[4],
+                { v_7.oneClickSettings, toggleInfo[3] },
+                toggleInfo[3],
+                description = toggleInfo[2]
+            })
+        end
+        tab:addDropdown({ "End-Game", endGameOptions, "Farm Lord Sus", { v_7.oneClickSettings, "endGame" }, "endGame" })
+    end
+end)
+
+-- Module 'ao': Owner UserId Verification
+registerModule("ao", function()
+    local v_1 = modules.b()
+    return {
+        isOwner = (v_1.localPlayer.UserId == 2764978820)
+    }
+end)
+
+-- Module 'ap': UI Tab: Misc Settings, Codes, Team & Movement (Chunks 149 & 150)
+registerModule("ap", function()
+    local v_1 = modules.b()
+    local v_2 = modules.f()
+    local v_3 = modules.e()
+    local v_4 = modules.ao()
+    local v_5 = modules.ad()
+    local v_6 = modules.j()
+    local v_7 = modules.i()
+    local v_8 = v_1.environment
+    local v_9 = v_1.localPlayer
+    local v_10 = v_1.wait
+    local v_11 = v_1.teleportService
+    local v_12 = v_1.huge
+    local v_13 = v_1.newCFrame
+    local v_14 = v_1.newCFrameAngles
+    return function(tab)
+        local defaultMaxJump = 15
+        local function toggleNotifications(hide)
+            v_9.PlayerGui.AnnounceGui.Enabled = not hide
+        end
+        local function updateFarmDistance(dist)
+            v_3.farmDistance = dist or 8
+            v_3.farmCFrame = v_13(0, v_3.farmDistance, 0) * v_14(math.rad(-90), 0, 0)
+        end
+        local function toggleInfJump(enabled)
+            local movementEnv = getsenv(v_9.Character.Abilities.Movement)
+            local maxJumpVal = (enabled and v_12) or defaultMaxJump
+            setupvalue(movementEnv.JumpActive, 5, maxJumpVal)
+            setupvalue(movementEnv.JumpActive, 6, maxJumpVal)
+            require(v_2.gameModules.Setting).Setting.MaxJump = maxJumpVal
+        end
+        local function toggleAutoEquip(enabled)
+            v_8.autoEquip = enabled
+            while v_8.autoEquip do
+                v_6:equipAccessory()
+                v_6:equipSword()
+                v_10(1)
+            end
+        end
+        local function sanitizeJobId(str)
+            return (str:gsub("`", ""))
+        end
+        local function teleportToJobId(jobId)
+            if v_7.standUp() then
+                v_11:TeleportToPlaceInstance(game.PlaceId, jobId, v_9)
+            end
+        end
+        local function joinFromClipboard()
+            local getClip = getclipboard or fromclipboard
+            if getClip then
+                teleportToJobId(sanitizeJobId(getClip()))
+            end
+        end
+        tab:addButton({ "Redeem All Codes", v_5.redeemCodes })
+        if v_4.isOwner then
+            tab:addSection("Job id")
+            tab:addTextBox({ "Input Job Id", "null", false, teleportToJobId, "Job ID" }).OnChanging = sanitizeJobId
+            tab:addButton({ "Join From Clipboard", joinFromClipboard })
+        end
+        tab:addSection("Settings")
+        tab:addDropdown({
+            "Language",
+            { "auto", "en", "pt", "es", "fr" },
+            v_3.language,
+            { v_3, "language" },
+            "language",
+            description = "Language changes apply on next run."
+        })
+        tab:addSlider({ "Farm Distance", 5, 15, 1, 8, updateFarmDistance, "farmDistance" })
+        tab:addToggle({ "Auto Aura", v_3.autoHaki, { v_3, "autoHaki" }, "autoHaki" })
+        tab:addToggle({ "Auto Attack", v_3.autoClick, { v_3, "autoClick" }, "autoClick" })
+        tab:addToggle({ "Bring Mobs", v_3.bringMobs, { v_3, "bringMobs" }, "bringMobs" })
+        tab:addToggle({ "Anti AFK", v_3.antiAfk, { v_3, "antiAfk" }, "antiAfk" })
+        tab:addToggle({ "Auto Equip", false, toggleAutoEquip, "autoEquip", description = "Sword & accessory" })
+        tab:addSection("Team")
+        tab:addButton({ "Join Cheems Team", v_5.joinTeam.cheems })
+        tab:addButton({ "Join Floppa Team", v_5.joinTeam.floppa })
+        tab:addSection("Others")
+        tab:addToggle({ "Remove Notifications", false, toggleNotifications, "removeNotifications" })
+        tab:addToggle({ "No Stun", true, { v_8, "noStun" }, "noStun" })
+        tab:addToggle({ "Inf sky jump", true, toggleInfJump, "infJump" })
+    end
+end)
+
+-- Module 'aq' (LVM5 Chunk 152): Popcat Weapon Clicker Automation
+registerModule("aq", function()
+    local shared = modules.a()
+    local cfg = modules.V()
+    local lang = modules._()
+    local ui = modules.aa()
+    return function()
+        local library = shared.library
+        if not library then
+            error("[nyann MemeSea] library nil")
+        end
+        pcall(function() lang.load() end)
+
+        local window = ui.makeWindow(library, cfg.window)
+        local tabs = {
+            discord = ui.makeTab(window, cfg.tabs.discord),
+            mainFarm = ui.makeTab(window, cfg.tabs.mainFarm),
+            items = ui.makeTab(window, cfg.tabs.items),
+            powers = ui.makeTab(window, cfg.tabs.powers),
+            stats = ui.makeTab(window, cfg.tabs.stats),
+            teleport = ui.makeTab(window, cfg.tabs.teleport),
+            shop = ui.makeTab(window, cfg.tabs.shop),
+            pvp = ui.makeTab(window, cfg.tabs.pvp),
+            oneClick = ui.makeTab(window, cfg.tabs.oneClick),
+            misc = ui.makeTab(window, cfg.tabs.misc),
+        }
+
+        pcall(function() tabs.mainFarm:select() end)
+
+        -- minimize (dùng cfg, không dùng window)
+        pcall(function()
+            ui.addMinimizeButton(window, {
+                button = {
+                    Image = cfg.minimizeLogo or "rbxassetid://15298567397",
+                    BackgroundTransparency = 0,
+                },
+                corner = { CornerRadius = UDim.new(0, 6) },
+            })
+        end)
+
+        pcall(function()
+            tabs.discord:addDiscordInvite({
+                name = cfg.discord.title,
+                description = cfg.discord.description,
+                logo = cfg.discord.logo,
+                invite = cfg.discord.invite,
+            })
+        end)
+
+        -- QUAN TRỌNG: lấy toggle/section TRƯỚC khi gọi tab builders
+        -- (bản cũ gán đè v_4 = v_4.toggle rồi v_5 = v_4.section → section = nil → mất chức năng)
+        local addToggle = ui.toggle
+        local addSection = ui.section
+
+        local function safeTab(name, fn)
+            local ok, err = pcall(fn)
+            if not ok then
+                warn("[nyann MemeSea] tab " .. name .. " error: ", err)
+            end
+        end
+
+        safeTab("Farm", function() modules.ab()(tabs.mainFarm, addToggle, addSection) end)
+        safeTab("Items", function() modules.ac()(tabs.items, addToggle, addSection) end)
+        safeTab("Powers", function() modules.af()(tabs.powers) end)
+        safeTab("Stats", function() modules.ag()(tabs.stats) end)
+        safeTab("Teleport", function() modules.ah()(tabs.teleport) end)
+        safeTab("Shop", function() modules.ai()(tabs.shop) end)
+        safeTab("PvP", function() modules.am()(tabs.pvp) end)
+        safeTab("OneClick", function() modules.an()(tabs.oneClick) end)
+        safeTab("Misc", function() modules.ap()(tabs.misc) end)
+
+        print("[nyann MemeSea] tabs + features wired")
+    end
+end)
+
+-- Module 'ar' (LVM5 Chunk 155): Main UI Window & Tabs Initializer
+registerModule("ar", function()
+    local v_1 = modules.b()
+    local v_2 = v_1.environment
+    local v_3 = v_1.spawn
+    local v_4 = v_1.wait
+    local v_5 = v_1.localPlayer
+    local v_6 = nil
+    local v_7 = nil
+    local v_8 = function()
+        if v_7 then
+            v_7:Destroy()
+            v_7 = nil
+        end
+    end
+    local v_9 = function(arg_1)
+        v_6 = ((arg_1 and (v_2[arg_1] and arg_1)) or nil)
+        local v_2 = v_5.Character
+        local v_3 = (v_2 and v_2:FindFirstChild("Humanoid"))
+        local v_4 = (v_2 and v_2:FindFirstChild("HumanoidRootPart"))
+        if ((not v_6) or ((not v_2.Parent) or ((not v_3) or ((v_3.Health <= 0) or (not v_4))))) then
+            v_8()
+            return
+        end
+        if (v_7 and (v_7.Parent ~= v_4)) then
+            v_8()
+        end
+        if (not v_7) then
+            v_7 = Instance.new("BodyVelocity")
+            v_7.Name = "MemeSea_FarmVelocity"
+            v_7.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            v_7.Velocity = Vector3.zero
+            v_7.Parent = v_4
+        end
+    end
+    local v_10 = {}
+    local v_11 = function(arg_1, arg_2)
+        if (v_10[arg_1] == arg_2) then
+            return
+        end
+        v_10[arg_1] = arg_2
+        warn(("[prioridade %s] %s"):format(arg_1, tostring(arg_2)))
+    end
+    local v_12 = function()
+        for v_1, v_2 in ipairs((v_2.priorities or {})) do
+            if v_2[v_2.flag] then
+                v_9(v_2.flag)
+                local v_3, v_4 = pcall(v_2.run)
+                if v_3 then
+                    v_10[v_2.flag] = nil
+                    if ((v_4 == true) and v_2[v_2.flag]) then
+                        return v_2.flag
+                    end
+                else
+                    v_11(v_2.flag, v_4)
+                end
+            end
+        end
+    end
+    return function()
+        if v_2.loadedFarmLoop then
+            return
+        end
+        v_2.loadedFarmLoop = true
+        local v_1 = v_1.runService.Heartbeat:Connect(function()
+            v_9(v_6)
+        end)
+        v_3(function()
+            while v_4() do
+                v_9(v_12())
+            end
+            v_9(nil)
+            v_1:Disconnect()
+            v_2.loadedFarmLoop = false
+        end)
+    end
+end)
+
+-- Main Entrypoint (FIXED: menu load)
+-- Fix: cũ dùng fetcher.load("{Owner}...") + readfile local → library không load → không hiện menu
+
+local sharedState = modules.a()
+
+-- soft blacklist (không kick cứng để tránh script dừng trước menu)
+pcall(function()
+	modules.d()()
+end)
+
+local core = modules.b()
+local hubSettings = modules.e()
+
+-- game folders (timeout-safe)
+local okF, errF = pcall(function()
+	modules.f()
+end)
+if not okF then
+	warn("[redz Hub MemeSea] modules.f failed (sai game?): ", errF)
+end
+
+pcall(function()
+	modules.g()()
+end)
+
+local combatController, questController, prioritiesList
+pcall(function() combatController = modules.l() end)
+pcall(function() questController = modules.n() end)
+pcall(function() prioritiesList = modules.S() end)
+pcall(function() modules.T()() end)
+
+-- Load Redz V5 UI library (direct HttpGet)
+local REDZ_UI_URL = "https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"
+local library
+local okLib, errLib = pcall(function()
+	library = loadstring(game:HttpGet(REDZ_UI_URL))()
+end)
+if not okLib or not library then
+	-- fallback daucobonhi DemoUi (cùng API MakeWindow/MakeTab)
+	pcall(function()
+		library = loadstring(game:HttpGet(
+			"https://raw.githubusercontent.com/daucobonhi/UiRedzV5/refs/heads/main/DemoUi.lua"
+		))()
+	end)
+end
+if not library then
+	warn("[redz Hub MemeSea] UI library FAILED to load: ", errLib)
+	return
+end
+
+sharedState.library = library
+sharedState.fetcher = {
+	load = function(path)
+		-- compatibility shim nếu chỗ khác còn gọi fetcher.load
+		local url = path
+		if type(path) == "string" and path:find("{Owner}") then
+			url = REDZ_UI_URL
+		elseif type(path) == "string" and not path:find("^https?://") then
+			url = "https://raw.githubusercontent.com/" .. path:gsub("^/+", "")
+		end
+		return loadstring(game:HttpGet(url))()
+	end,
+}
+
+local env = core.environment
+env.hubSettings = hubSettings
+env.latestAttack = combatController
+env.oneClickSettings = env.oneClickSettings or {}
+
+pcall(function()
+	if questController and questController.updateQuestsList then
+		questController:updateQuestsList()
+	end
+end)
+
+pcall(function() modules.U()() end)
+
+-- Build menu
+local okUI, errUI = pcall(function()
+	modules.aq()()
+end)
+if not okUI then
+	warn("[redz Hub MemeSea] menu build error: ", errUI)
+	-- last-resort minimal window so user still sees UI
+	pcall(function()
+		local win = library:MakeWindow({
+			Title = "redz Hub : Meme Sea",
+			SubTitle = "menu recover · check console",
+			SaveFolder = "redzHub-MemeSea.json",
+		})
+		local tab = win:MakeTab({ Title = "Info", Icon = "Info" })
+		tab:AddParagraph({
+			Title = "UI Error",
+			Content = tostring(errUI),
+		})
+		pcall(function()
+			local m = win:NewMinimizer({ KeyCode = Enum.KeyCode.LeftControl })
+			m:CreateMobileMinimizer({
+				Image = "rbxassetid://15298567397",
+				BackgroundTransparency = 0,
+			})
+		end)
+	end)
+else
+	print("[redz Hub MemeSea] menu loaded")
+end
+
+env.priorities = prioritiesList or {}
+pcall(function() modules.ar()() end)
