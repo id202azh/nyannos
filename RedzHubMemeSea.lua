@@ -2599,16 +2599,16 @@ uiConfig = lazy(function()
 	m89_L1 = (discordInvite())
 	return {
 		window = {
-			title = "redz Hub : Meme Sea",
-			subtitle = "by redz9999",
+			title = "nyann os : Meme Sea",
+			subtitle = "by real_@nyannnokonoko",
 			scriptFolder = "redzHub-MemeSea.json",
 		},
 		minimizeLogo = "rbxassetid://94678517792779",
 		discord = {
-			title = "redz Hub | Community",
+			title = "Nyann | Community",
 			description = "Join our discord community to receive information about the next update",
-			logo = "rbxassetid://17382040552",
-			invite = m89_L1,
+			logo = "rbxassetid://94678517792779",
+			invite = https://discord.gg/DrHuRgrsVG,
 		},
 		tabs = {
 			discord = { title = "Discord", icon = "Info" },
@@ -2619,7 +2619,7 @@ uiConfig = lazy(function()
 			teleport = { title = "Teleport", icon = "Locate" },
 			shop = { title = "Shop", icon = "ShoppingCart" },
 			pvp = { title = "PvP", icon = "User" },
-			oneClick = { title = "One-Click", icon = "mouse-pointer-click" },
+			oneClick = { title = "One-Click", icon = "cpu" },
 			misc = { title = "Misc", icon = "Settings" },
 		},
 	}
