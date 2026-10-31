@@ -2607,7 +2607,7 @@ uiConfig = lazy(function()
 		discord = {
 			title = "nyann os | Community",
 			description = "Join our discord community to receive information about the next update",
-			logo = "rbxassetid://17382040552",
+			logo = "rbxassetid://94678517792779",
 			invite = m89_L1,
 		},
 		tabs = {
