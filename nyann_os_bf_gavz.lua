@@ -1,8 +1,6 @@
 --[[
-  nyann os · Blox Fruits (Gavz base fixed)
-  - fixed Font tab syntax (was "v:MakeTab")
-  - Tabs = tbl alias
-  - safer UI load + minimize
+  nyann os · Blox Fruits
+  Menu: Redz V5 remake only
 ]]
 
 if getgenv()._NYANN_GAVZ then
@@ -15,13 +13,12 @@ repeat task.wait() until game:IsLoaded()
 
 -- Chỉ load menu Redz V5 remake
 local UI_URL = "https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"
-
 local Library
 local okLib, errLib = pcall(function()
   Library = loadstring(game:HttpGet(UI_URL))()
 end)
 if not okLib or not Library then
-  warn("[nyann os] Redz V5 menu fail:", errLib)
+  warn("[nyann os] menu load fail:", errLib)
   return
 end
 
@@ -42,7 +39,7 @@ end)
 local tbl
 
 tbl = {
-  Info = v:MakeTab({ Title = "Tab Info And Status", Icon = "info" }),
+  Info = v:MakeTab({ Title = "Tab Info And Status", Icon = "Info" }),
   Main = v:MakeTab({ Title = "Tab Farming", Icon = "rbxassetid://7733960981" }),
   Font = v:MakeTab({ Title = "Tab Font", Icon = "type" }),
   Settings = v:MakeTab({ Title = "Tab Setting", Icon = "rbxassetid://7734053495" }),
@@ -59,44 +56,65 @@ tbl = {
   Misc = v:MakeTab({ Title = "Tab Miscellaneous", Icon = "rbxassetid://10709783577" }),
 }
 
+-- Alias
 Tabs = tbl
 getgenv().Tabs = tbl
 getgenv().Window = v
 
-Tabs.Info:AddDiscordInvite({
-	Title = "Nyann | Community🇻🇳👑",
-	Description = "Sever discord.",
-	Banner = "rbxassetid://94678517792779", 
-	Logo = "rbxassetid://94678517792779",
-	Invite = "https://discord.gg/k6MRH4KxTv",
-	Members = 36, 
-	Online = 67, 
-})
-
--- ==========================================
--- PHẦN CHỌN FONT (thêm vào tab Font)
--- ==========================================
-
-Tabs.Font:AddSection("Font")
-
-local currentFont = Enum.Font.Arial
-
-local function ApplyGlobalFont(fontEnum)
-    currentFont = fontEnum
-    for _, obj in ipairs(game.Players.LocalPlayer.PlayerGui:GetDescendants()) do
-        if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-            obj.Font = fontEnum
-        end
-    end
-end
-
-game.Players.LocalPlayer.PlayerGui.DescendantAdded:Connect(function(obj)
-    if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-        obj.Font = currentFont
-    end
+-- Information + Discord
+Tabs.Info:AddSection("Information")
+pcall(function()
+  Tabs.Info:AddDiscordInvite({
+    Title = "Nyann | Community🇻🇳👑",
+    Description = "Sever discord.",
+    Banner = "rbxassetid://94678517792779",
+    Logo = "rbxassetid://94678517792779",
+    Invite = "https://discord.gg/k6MRH4KxTv",
+    Members = 36,
+    Online = 67,
+  })
 end)
 
-local fontList = {
+-- ==========================================
+-- PHẦN CHỌN FONT (tab Font)
+-- ==========================================
+pcall(function()
+  Tabs.Font:AddSection("Font")
+
+  local currentFont = Enum.Font.Code
+
+  local function ApplyGlobalFont(fontEnum)
+    currentFont = fontEnum
+    local function apply(obj)
+      if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+        pcall(function()
+          obj.Font = fontEnum
+        end)
+      end
+    end
+    pcall(function()
+      for _, obj in ipairs(game.Players.LocalPlayer.PlayerGui:GetDescendants()) do
+        apply(obj)
+      end
+    end)
+    pcall(function()
+      for _, obj in ipairs(game:GetService("CoreGui"):GetDescendants()) do
+        apply(obj)
+      end
+    end)
+  end
+
+  pcall(function()
+    game.Players.LocalPlayer.PlayerGui.DescendantAdded:Connect(function(obj)
+      if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+        pcall(function()
+          obj.Font = currentFont
+        end)
+      end
+    end)
+  end)
+
+  local fontList = {
     {"Amatic SC", Enum.Font.AmaticSC},
     {"Antique", Enum.Font.Antique},
     {"Arcade", Enum.Font.Arcade},
@@ -111,18 +129,19 @@ local fontList = {
     {"Fondamento", Enum.Font.Fondamento},
     {"Fredoka One", Enum.Font.FredokaOne},
     {"Garamond", Enum.Font.Garamond},
-    {"Gotham", Enum.Font.Gotham}
-}
+    {"Gotham", Enum.Font.Gotham},
+  }
 
-for _, fontData in ipairs(fontList) do
+  for _, fontData in ipairs(fontList) do
     Tabs.Font:AddButton({
-        Name = "Font: " .. fontData[1],
-        Description = "",
-        Callback = function()
-            ApplyGlobalFont(fontData[2])
-        end
+      Name = "Font: " .. fontData[1],
+      Description = "",
+      Callback = function()
+        ApplyGlobalFont(fontData[2])
+      end,
     })
-end
+  end
+end)
 
 tbl.Info:AddSection("Status Server")
 local n4
@@ -14550,5 +14569,5 @@ pcall(function()
     Duration = 5,
   })
 end)
-print("[nyann os] Gavz/BF hub loaded")
+print("[nyann os] loaded · Redz V5 menu")
 -- nyann os
